@@ -9,15 +9,15 @@ import { generateFloorImage } from "@/lib/ai/image";
 import { generateFloorSpec } from "@/lib/ai/spec";
 import { ContractError, RefusalError } from "@/lib/ai/errors";
 import type { Keys } from "@/lib/ai/keys";
-import type { Floor, FloorKind } from "@/lib/ai/types";
+import type { Effort, Floor, FloorKind } from "@/lib/ai/types";
 import type { Reference } from "@/lib/ai/providers/types";
 import {
   BASEMENT_ORDINAL,
   ROOF_ORDINAL,
   clearStaticSlot,
+  completeFloor,
   insertFloor,
   listFloors,
-  nextFloorOrdinal,
   referenceTile,
 } from "@/lib/db/floors";
 import { deleteImage, getImage, putImage } from "@/lib/storage";
@@ -27,59 +27,58 @@ import { assertConsistentTiles, readStartingTile } from "@/lib/building/importTi
 
 export interface GenerateOptions {
   keys: Keys;
+  /** The pending floor whose slot has already been claimed. */
+  floorId: string;
+  ordinal: number;
   theme: string;
-  kind?: FloorKind;
-  ordinal?: number;
-  isReference?: boolean;
+  effort?: Effort;
 }
 
 /**
  * Theme -> spec -> prompt -> image -> validate -> persist.
  *
- * A refusal or a tile that violates the contract twice does not throw: it is
- * persisted as a dead floor. A burnt-out floor in the tower is a better outcome
- * than a lost floor, and it is the honest record of what the models did.
+ * Fills in a floor whose slot was reserved before this ran, so the tower shows
+ * the storey under construction while the work happens.
+ *
+ * A refusal, or a tile that violates the contract twice, does not throw: the
+ * floor is completed as dead. A burnt-out storey is a better outcome than a
+ * lost one, and it is the honest record of what the models did.
  */
-export async function generateFloor(options: GenerateOptions): Promise<Floor> {
-  const kind = options.kind ?? "floor";
+export async function generateFloor(options: GenerateOptions): Promise<Floor | null> {
   const theme = options.theme.trim();
   const existing = await listFloors();
-  const ordinal =
-    options.ordinal ??
-    (kind === "roof" ? ROOF_ORDINAL : kind === "basement" ? BASEMENT_ORDINAL : await nextFloorOrdinal());
 
   const dead = (reason: string, meta: Record<string, unknown>) =>
-    insertFloor({
-      ordinal,
-      kind,
+    completeFloor(options.floorId, {
       status: "dead",
-      themePrompt: theme,
-      displayName: theme.slice(0, 28),
+      displayName: theme.slice(0, 40),
       spec: null,
       failureReason: reason,
       meta,
-      isReference: false,
     });
 
   let spec;
   try {
     spec = await generateFloorSpec(options.keys.anthropic, theme, {
-      kind,
+      kind: "floor",
       existingThemes: existing
         .filter((floor) => floor.kind === "floor" && floor.status === "ready")
         .map((floor) => floor.displayName),
+      effort: options.effort,
     });
   } catch (error) {
     if (error instanceof RefusalError) {
       return dead(error.message, { stage: "spec", category: error.category });
     }
-    throw error;
+    return dead(error instanceof Error ? error.message : "The theme interpreter failed.", {
+      stage: "spec",
+    });
   }
 
   const reference = await loadReference();
   const prompt = reference
-    ? composeEditPrompt(spec, theme, ordinal)
-    : composeSeedPrompt(spec, kind);
+    ? composeEditPrompt(spec, theme, options.ordinal)
+    : composeSeedPrompt(spec, "floor");
 
   let tile;
   let attempts = 0;
@@ -97,7 +96,10 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor> {
         lastContractFailure = error.message;
         continue;
       }
-      throw error;
+      return dead(error instanceof Error ? error.message : "Image generation failed.", {
+        stage: "image",
+        spec,
+      });
     }
   }
 
@@ -108,27 +110,18 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor> {
     });
   }
 
-  // Models return the transparency checkerboard as opaque grey often enough
-  // that this has to be a pipeline stage rather than a manual clean-up.
-  const keyed = await restoreAlpha(tile.bytes);
-  // Generated floors come back flatter than the drawn artwork, so they are
-  // graded to match the reference tile they were built from.
-  const bytes = reference ? await matchTone(keyed, await analyzeTone(reference.bytes)) : keyed;
+  const bytes = await restoreAlpha(tile.bytes);
   const mimeType = bytes === tile.bytes ? tile.mimeType : "image/png";
   const extension = mimeType === "image/png" ? "png" : "jpg";
   const key = `floors/${randomUUID()}.${extension}`;
   await putImage(key, bytes, mimeType);
 
-  return insertFloor({
-    ordinal,
-    kind,
+  return completeFloor(options.floorId, {
     status: "ready",
-    themePrompt: theme,
     displayName: spec.displayName,
     spec,
-    meta: { attempts, width: tile.width, height: tile.height },
+    meta: { attempts, effort: options.effort ?? "medium", width: tile.width, height: tile.height },
     image: { key, mime: mimeType, width: tile.width, height: tile.height },
-    isReference: options.isReference ?? false,
   });
 }
 

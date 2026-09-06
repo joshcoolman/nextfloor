@@ -1,9 +1,14 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { FloorSpecSchema, type FloorKind, type FloorSpec } from "./types";
+import { FloorSpecSchema, type Effort, type FloorKind, type FloorSpec } from "./types";
 import { RefusalError } from "./errors";
 
-const MODEL = "claude-opus-5";
+/**
+ * Sonnet rather than Opus: this stage is creative expansion, not hard
+ * reasoning, and output tokens dominate its cost -- $10/MTok against $25.
+ * Set ANTHROPIC_SPEC_MODEL to compare.
+ */
+const MODEL = process.env.ANTHROPIC_SPEC_MODEL || "claude-sonnet-5";
 
 const SYSTEM = `
 You are the Theme Interpreter for a generative isometric pixel-art building.
@@ -29,6 +34,7 @@ export interface SpecContext {
   kind: FloorKind;
   /** Themes already in the building, so the interpreter diverges from them. */
   existingThemes: string[];
+  effort?: Effort;
 }
 
 export async function generateFloorSpec(
@@ -49,7 +55,7 @@ export async function generateFloorSpec(
     max_tokens: 16000,
     system: SYSTEM,
     output_config: {
-      effort: "medium",
+      effort: context.effort ?? "medium",
       format: zodOutputFormat(FloorSpecSchema),
     },
     messages: [{ role: "user", content: `Theme: ${theme}${avoid}` }],

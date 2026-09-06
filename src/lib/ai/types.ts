@@ -18,7 +18,15 @@ export const FloorSpecSchema = z.object({
 export type FloorSpec = z.infer<typeof FloorSpecSchema>;
 
 export type FloorKind = "floor" | "roof" | "basement";
-export type FloorStatus = "ready" | "dead";
+
+/**
+ * How hard the theme interpreter thinks. Affects only the floor description,
+ * not the artwork -- and thinking tokens are billed as output, so this is the
+ * main cost dial.
+ */
+export type Effort = "low" | "medium" | "high";
+export const EFFORTS: Effort[] = ["low", "medium", "high"];
+export type FloorStatus = "pending" | "ready" | "dead";
 
 export interface Floor {
   id: string;

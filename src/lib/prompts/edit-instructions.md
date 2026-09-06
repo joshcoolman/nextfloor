@@ -72,12 +72,6 @@ furniture, characters, lighting, activities, signage, and environmental details.
 
 {{content}}
 
-TRANSPARENCY -- CRITICAL:
-Output PNG with TRUE ALPHA TRANSPARENCY. Everything outside the building tile
-must be fully transparent. Do NOT draw a white, black, colored, gradient, or
-scenic background. Do NOT simulate transparency. No shadows extending onto an
-imaginary background.
-
 STACKING:
 This is a modular building component, not a complete illustration. Preserve clean
 transparent space surrounding the building. The top/rear structural boundary and

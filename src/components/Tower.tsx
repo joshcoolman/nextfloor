@@ -9,18 +9,17 @@ import ZoomControl from "./ZoomControl";
 import DeleteFloors from "./DeleteFloors";
 import { useKeys } from "@/hooks/useKeys";
 import { frameOf, placeFloors } from "@/lib/building/layout";
-import type { Floor } from "@/lib/ai/types";
+import type { Effort, Floor } from "@/lib/ai/types";
 
 export default function Tower() {
   const [floors, setFloors] = useState<Floor[]>([]);
   const [serverKeys, setServerKeys] = useState(false);
   const [local, setLocal] = useState(false);
   const [busy, setBusy] = useState(false);
+  const pendingCount = floors.filter((floor) => floor.status === "pending").length;
   const [error, setError] = useState<string | null>(null);
   const [newest, setNewest] = useState<string | null>(null);
   const [zoom, setZoom] = useState(0.6);
-  /** ?constructing previews the construction tile without spending a generation. */
-  const [preview, setPreview] = useState(false);
 
   const { keys, setKeys, headers } = useKeys();
   const frame = useMemo(() => frameOf(floors), [floors]);
@@ -30,24 +29,8 @@ export default function Tower() {
   /** How much each tile rides up over the one below it. */
   const overlap = frame.height - frame.pitch;
 
-  /**
-   * While a floor generates, a construction tile occupies the slot it will
-   * land in, so the building visibly grows a storey rather than the page
-   * sitting still for a couple of minutes.
-   */
-  const items = useMemo(() => {
-    const list: Array<{ key: string; placed?: (typeof placed)[number] }> = placed.map((item) => ({
-      key: item.floor.id,
-      placed: item,
-    }));
-    if (!busy && !preview) return list;
-    const below = list.findIndex((item) => item.placed?.floor.kind !== "roof");
-    list.splice(below === -1 ? list.length : below, 0, { key: "under-construction" });
-    return list;
-  }, [busy, placed, preview]);
 
   useEffect(() => {
-    setPreview(new URLSearchParams(window.location.search).has("constructing"));
     try {
       const stored = Number(localStorage.getItem("nextfloor.zoom"));
       if (stored > 0) setZoom(stored);
@@ -77,27 +60,41 @@ export default function Tower() {
   }, []);
 
   const addFloor = useCallback(
-    async (theme: string) => {
+    async (theme: string, effort: Effort): Promise<boolean> => {
       setBusy(true);
       setError(null);
       try {
         const response = await fetch("/api/floors", {
           method: "POST",
           headers: headers(),
-          body: JSON.stringify({ theme }),
+          body: JSON.stringify({ theme, effort }),
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error ?? "Floor generation failed.");
+        if (!response.ok) throw new Error(data.error ?? "Could not start that floor.");
         setFloors((current) => [...current, data.floor as Floor]);
         setNewest((data.floor as Floor).id);
+        return true;
       } catch (thrown) {
-        setError(thrown instanceof Error ? thrown.message : "Floor generation failed.");
+        setError(thrown instanceof Error ? thrown.message : "Could not start that floor.");
+        return false;
       } finally {
         setBusy(false);
       }
     },
     [headers],
   );
+
+  /** Poll while anything is under construction, and stop when nothing is. */
+  useEffect(() => {
+    if (pendingCount === 0) return;
+    const timer = setInterval(() => {
+      fetch("/api/floors")
+        .then((response) => response.json())
+        .then((data) => setFloors(data.floors))
+        .catch(() => {});
+    }, 8000);
+    return () => clearInterval(timer);
+  }, [pendingCount]);
 
   const removeFloors = useCallback(async (ids: string[]) => {
     const removed: string[] = [];
@@ -129,26 +126,28 @@ export default function Tower() {
         would leave the layout box at full size and leave phantom scroll area.
       */}
       <div className={styles.stack} style={{ zoom }}>
-        {items.map((entry, index) => {
+        {placed.map((item, index) => {
           const style = {
             width: frame.width,
             height: frame.height,
             marginTop: index === 0 ? 0 : -overlap,
             // Higher floors paint over lower ones. Tiles are laid out
             // top-first, so without this the basement would cover the tower.
-            zIndex: items.length - index,
+            zIndex: placed.length - index,
           } as const;
 
-          if (!entry.placed) {
+          if (item.floor.status === "pending") {
             return (
               <figure
-                key={entry.key}
+                key={item.floor.id}
+                id={item.floor.id}
                 className={`${styles.tile} ${styles.construction} ${styles.settle}`}
                 style={style}
+                title={item.floor.themePrompt}
               >
                 <img
                   src="/construction-floor.png"
-                  alt="Floor under construction"
+                  alt={`Under construction: ${item.floor.themePrompt}`}
                   width={frame.width}
                   height={frame.height}
                   draggable={false}
@@ -158,10 +157,9 @@ export default function Tower() {
             );
           }
 
-          const item = entry.placed;
           return (
             <figure
-              key={entry.key}
+              key={item.floor.id}
               id={item.floor.id}
               className={`${styles.tile} ${item.floor.id === newest ? styles.settle : ""}`}
               style={style}
@@ -197,7 +195,13 @@ export default function Tower() {
       )}
 
       <footer className={styles.footer}>
-        <AddFloorControl busy={busy} disabled={!ready} error={error} onSubmit={addFloor} />
+        <AddFloorControl
+          busy={busy}
+          pending={pendingCount}
+          disabled={!ready}
+          error={error}
+          onSubmit={addFloor}
+        />
         <ZoomControl zoom={zoom} onChange={changeZoom} />
         <KeyPanel keys={keys} onChange={setKeys} serverKeys={serverKeys} />
         {local && <DeleteFloors floors={floors} onDelete={removeFloors} />}

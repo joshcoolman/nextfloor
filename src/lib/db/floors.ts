@@ -144,6 +144,95 @@ export async function clearStaticSlot(kind: FloorKind): Promise<string[]> {
   return rows.map((row) => row.image_key).filter((key): key is string => Boolean(key));
 }
 
+/**
+ * Claims the next floor slot and returns a pending row for it.
+ *
+ * The ordinal is allocated under an advisory lock rather than by reading max()
+ * and inserting later: generation takes a minute or two, and several requests
+ * in flight would otherwise all compute the same number and collide, with that
+ * number baked into the artwork.
+ *
+ * The row exists from the moment the slot is claimed, so a pending floor
+ * survives a browser refresh and shows as under construction.
+ */
+export async function reserveFloor(theme: string): Promise<Floor> {
+  await ensureSchema();
+  const client = await pool().connect();
+  try {
+    await client.query("begin");
+    await client.query("select pg_advisory_xact_lock(hashtext('nextfloor:ordinal'))");
+    const { rows } = await client.query<Row>(
+      `insert into floors (id, ordinal, kind, status, theme_prompt, display_name, meta)
+       values (
+         $1,
+         (select coalesce(max(ordinal), 0) + 1 from floors where kind = 'floor'),
+         'floor', 'pending', $2, $3, '{}'::jsonb
+       )
+       returning *`,
+      [randomUUID(), theme, theme.slice(0, 40)],
+    );
+    await client.query("commit");
+    return toFloor(rows[0]);
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function completeFloor(
+  id: string,
+  fields: {
+    status: FloorStatus;
+    displayName: string;
+    spec: FloorSpec | null;
+    failureReason?: string | null;
+    meta?: Record<string, unknown>;
+    image?: { key: string; mime: string; width: number; height: number } | null;
+  },
+): Promise<Floor | null> {
+  await ensureSchema();
+  const { rows } = await pool().query<Row>(
+    `update floors set
+       status = $2, display_name = $3, spec = $4, failure_reason = $5, meta = $6,
+       image_key = $7, image_mime = $8, image_width = $9, image_height = $10
+     where id = $1
+     returning *`,
+    [
+      id,
+      fields.status,
+      fields.displayName,
+      fields.spec ? JSON.stringify(fields.spec) : null,
+      fields.failureReason ?? null,
+      JSON.stringify(fields.meta ?? {}),
+      fields.image?.key ?? null,
+      fields.image?.mime ?? null,
+      fields.image?.width ?? null,
+      fields.image?.height ?? null,
+    ],
+  );
+  return rows[0] ? toFloor(rows[0]) : null;
+}
+
+/**
+ * A pending floor whose request died -- a redeploy, a crash -- would otherwise
+ * sit under construction forever. After the cutoff it becomes a dead floor,
+ * which is the honest record and already renders.
+ */
+export async function sweepStalePending(minutes = 15): Promise<number> {
+  await ensureSchema();
+  const { rowCount } = await pool().query(
+    `update floors
+        set status = 'dead',
+            failure_reason = 'Construction stopped: the server restarted before this floor was finished.'
+      where status = 'pending'
+        and created_at < now() - ($1 || ' minutes')::interval`,
+    [String(minutes)],
+  );
+  return rowCount ?? 0;
+}
+
 export interface DeleteResult {
   deleted: boolean;
   imageKey: string | null;

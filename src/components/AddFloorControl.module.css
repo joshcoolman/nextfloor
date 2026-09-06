@@ -7,10 +7,28 @@
   gap: 6px;
 }
 
+.labelRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
 .label {
   font-size: 10px;
   letter-spacing: 0.12em;
   color: var(--ink-faint);
+}
+
+.clear {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--ink-faint);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.clear:hover {
+  color: var(--danger);
 }
 
 .input {
@@ -90,4 +108,36 @@
   font-size: 11px;
   line-height: 1.5;
   color: var(--danger);
+}
+
+.pending {
+  margin: 8px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+}
+
+.effort {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.effortSelect {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  background: var(--ground-lift);
+  border: 1px solid var(--edge);
+  outline: none;
+}
+
+.effortSelect:focus {
+  border-color: var(--ink-faint);
 }
