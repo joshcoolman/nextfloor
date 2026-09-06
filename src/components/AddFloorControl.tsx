@@ -16,9 +16,11 @@ interface Props {
   error: string | null;
   /** Resolves false when the floor could not be started, so the draft is kept. */
   onSubmit: (theme: string, effort: Effort) => Promise<boolean>;
+  /** Called once a floor is actually under way, to dismiss the panel. */
+  onDone: () => void;
 }
 
-export default function AddFloorControl({ busy, pending, disabled, error, onSubmit }: Props) {
+export default function AddFloorControl({ busy, pending, disabled, error, onSubmit, onDone }: Props) {
   const [theme, setTheme] = useState("");
   const [effort, setEffort] = useState<Effort>("medium");
 
@@ -71,7 +73,11 @@ export default function AddFloorControl({ busy, pending, disabled, error, onSubm
         if (!description) return;
         // Only discard the draft once the floor is actually under way. A failed
         // start used to lose whatever had just been typed.
-        if (await onSubmit(description, effort)) clearDraft();
+        // Dismiss on success only; a failed start keeps the description.
+        if (await onSubmit(description, effort)) {
+          clearDraft();
+          onDone();
+        }
       }}
     >
       <div className={styles.field}>

@@ -1,3 +1,23 @@
+/* A round, obvious affordance. The only permanent chrome over the building. */
+
+
+.add:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--ink);
+}
+
+.add:disabled {
+  border-color: var(--edge);
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
+
+
+
+
+
+
 .dock {
   width: 100%;
 }

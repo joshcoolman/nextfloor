@@ -1,7 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import styles from "./KeyPanel.module.css";
 import type { KeyPair } from "@/hooks/useKeys";
 
@@ -17,76 +15,30 @@ interface Props {
  * fixed-position descendants and would clip a full-screen backdrop to the rail.
  */
 export default function KeyPanel({ keys, onChange, serverKeys }: Props) {
-  const [open, setOpen] = useState(false);
-  const ready = serverKeys || Boolean(keys.anthropic && keys.fal);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
-  const trigger = (
-    <button className={styles.trigger} onClick={() => setOpen(true)}>
-      <span>KEYS</span>
-      <span className={styles.dot} data-ready={ready} />
-    </button>
-  );
-
-  if (!open) return trigger;
-
-  const modal = (
-    <div
-      className={styles.backdrop}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) setOpen(false);
-      }}
-    >
-      <div className={styles.modal}>
-        <div className={styles.heading}>
-          <span>KEYS</span>
-          <span>{serverKeys ? "HOST KEYS IN USE" : ready ? "READY" : "REQUIRED"}</span>
-        </div>
-
-        <div className={styles.body}>
-          <label className={styles.field}>
-            <span>ANTHROPIC — WRITES THE FLOOR</span>
-            <input
-              type="password"
-              value={keys.anthropic}
-              placeholder={serverKeys ? "using the host's key" : "sk-ant-..."}
-              onChange={(event) => onChange({ ...keys, anthropic: event.target.value })}
-            />
-          </label>
-          <label className={styles.field}>
-            <span>FAL — DRAWS THE FLOOR</span>
-            <input
-              type="password"
-              value={keys.fal}
-              placeholder={serverKeys ? "using the host's key" : "fal key"}
-              onChange={(event) => onChange({ ...keys, fal: event.target.value })}
-            />
-          </label>
-          <p className={styles.note}>
-            Kept in this browser only, sent with each request, never stored on the
-            server. Floors spend your own credit.
-          </p>
-        </div>
-
-        <div className={styles.actions}>
-          <button onClick={() => setOpen(false)}>DONE</button>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
-    <>
-      {trigger}
-      {createPortal(modal, document.body)}
-    </>
+    <div className={styles.body}>
+      <label className={styles.field}>
+        <span>ANTHROPIC — WRITES THE FLOOR</span>
+        <input
+          type="password"
+          value={keys.anthropic}
+          placeholder={serverKeys ? "using the host's key" : "sk-ant-..."}
+          onChange={(event) => onChange({ ...keys, anthropic: event.target.value })}
+        />
+      </label>
+      <label className={styles.field}>
+        <span>FAL — DRAWS THE FLOOR</span>
+        <input
+          type="password"
+          value={keys.fal}
+          placeholder={serverKeys ? "using the host's key" : "fal key"}
+          onChange={(event) => onChange({ ...keys, fal: event.target.value })}
+        />
+      </label>
+      <p className={styles.note}>
+        Kept in this browser only, sent with each request, never stored on the
+        server. Floors spend your own credit.
+      </p>
+    </div>
   );
 }

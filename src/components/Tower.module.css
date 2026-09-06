@@ -6,9 +6,7 @@
      rail, plain centring overflows equally in both directions and the left edge
      becomes unreachable by scrolling. safe centring falls back to start. */
   align-items: safe center;
-  /* The rail is reserved rather than overlaid, so the building centres in the
-     space that is left and nothing ever sits under the controls. */
-  padding: 0 var(--rail) 64px 0;
+  padding: 0 0 64px;
   background: var(--ground);
 }
 
@@ -75,19 +73,15 @@
   border-color: var(--danger);
 }
 
-/* Pinned, because the building grows without limit and the controls should not
-   drift off the bottom of a hundred-storey page. */
-.footer {
+/* Secondary controls, tucked under the add button rather than in a rail that
+   permanently covers a slice of the building. */
+.cluster {
   position: fixed;
   top: 16px;
   right: 16px;
-  z-index: 10;
-  width: calc(var(--rail) - 32px);
-  padding: 10px;
-  /* The controls sit over the artwork now, so they need their own ground. */
-  background: rgba(0, 0, 0, 0.78);
-  border: 1px solid var(--edge);
-  backdrop-filter: blur(8px);
+  z-index: 30;
+  top: 84px;
+  width: 190px;
 }
 
 .empty {

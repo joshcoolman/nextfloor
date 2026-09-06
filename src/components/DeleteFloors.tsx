@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import styles from "./DeleteFloors.module.css";
 import type { Floor } from "@/lib/ai/types";
 
@@ -21,56 +20,20 @@ interface Props {
  * correspondence with what is on screen.
  */
 export default function DeleteFloors({ floors, onDelete }: Props) {
-  const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [working, setWorking] = useState(false);
 
   const ordered = [...floors].sort((a, b) => b.ordinal - a.ordinal);
 
-  const close = () => {
-    setOpen(false);
-    setSelected([]);
-  };
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
-
   const label = (floor: Floor) =>
     floor.kind === "roof" ? "RF" : floor.kind === "basement" ? "B" : String(Math.round(floor.ordinal));
 
-  const trigger = (
-    <button className={styles.trigger} onClick={() => setOpen(true)}>
-      DELETE FLOORS
-    </button>
-  );
-
-  if (!open) return trigger;
-
-  /*
-   * Portalled to the body on purpose. The control rail sets backdrop-filter,
-   * which makes it a containing block for fixed-position descendants -- so a
-   * full-screen backdrop rendered inside it gets clipped to the rail.
-   */
-  const modal = (
-    <div
-      className={styles.backdrop}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) close();
-      }}
-    >
-      <div className={styles.modal}>
-        <div className={styles.heading}>
-          <span>DELETE FLOORS</span>
-          <span>{selected.length ? `${selected.length} SELECTED` : "LOCAL ONLY"}</span>
-        </div>
-
-        <div className={styles.list}>
+  return (
+    <>
+      <div className={styles.count}>
+        {selected.length ? `${selected.length} selected` : "Local only"}
+      </div>
+      <div className={styles.list}>
           {ordered.map((floor) => {
             const fixed = floor.meta?.source === "public";
             return (
@@ -101,36 +64,23 @@ export default function DeleteFloors({ floors, onDelete }: Props) {
               </label>
             );
           })}
-        </div>
-
-        <div className={styles.actions}>
-          <button onClick={close} disabled={working}>
-            CANCEL
-          </button>
-          <button
-            className={styles.confirm}
-            disabled={working || selected.length === 0}
-            onClick={async () => {
-              setWorking(true);
-              try {
-                await onDelete(selected);
-                close();
-              } finally {
-                setWorking(false);
-              }
-            }}
-          >
-            {working ? "DELETING..." : "DELETE"}
-          </button>
-        </div>
       </div>
-    </div>
-  );
 
-  return (
-    <>
-      {trigger}
-      {createPortal(modal, document.body)}
+      <button
+        className={styles.confirm}
+        disabled={working || selected.length === 0}
+        onClick={async () => {
+          setWorking(true);
+          try {
+            await onDelete(selected);
+            setSelected([]);
+          } finally {
+            setWorking(false);
+          }
+        }}
+      >
+        {working ? "DELETING..." : "DELETE SELECTED"}
+      </button>
     </>
   );
 }

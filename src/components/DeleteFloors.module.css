@@ -1,47 +1,11 @@
-.trigger {
-  width: 100%;
-  margin-top: 10px;
-  padding: 9px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: var(--ink-dim);
-  border: 1px solid var(--edge);
-}
 
-.trigger:hover {
-  color: var(--danger);
-  border-color: var(--danger);
-}
 
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(3px);
-}
 
-.modal {
-  width: min(460px, 100%);
-  max-height: min(70vh, 640px);
-  display: flex;
-  flex-direction: column;
-  background: var(--ground);
-  border: 1px solid var(--edge);
-}
 
-.heading {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 14px;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  color: var(--ink-faint);
-  border-bottom: 1px solid var(--edge);
-}
+
+
+
+
 
 /* Ordered top of the building first, so the list reads as the stack does. */
 .list {
@@ -106,30 +70,43 @@
   color: var(--ink-faint);
 }
 
-.actions {
-  display: flex;
-  gap: 2px;
-  border-top: 1px solid var(--edge);
-}
 
-.actions button {
-  flex: 1;
-  padding: 11px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: var(--ink-dim);
-}
 
-.actions button:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--ink);
-}
+
 
 .confirm:hover:not(:disabled) {
   color: var(--danger) !important;
 }
 
-.actions button:disabled {
+.count {
+  margin-bottom: 10px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--ink-faint);
+}
+
+.list {
+  max-height: 46vh;
+  overflow-y: auto;
+  border: 1px solid var(--edge);
+}
+
+.confirm {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+  border: 1px solid var(--edge);
+}
+
+.confirm:hover:not(:disabled) {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.confirm:disabled {
   color: #2e2e2e;
   cursor: not-allowed;
 }

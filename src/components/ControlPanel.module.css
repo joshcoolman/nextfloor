@@ -1,0 +1,105 @@
+/* The only permanent chrome over the building. */
+.add {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 30;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--ground);
+  border: 1px solid var(--ink-faint);
+  color: var(--ink);
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.add:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: var(--ink);
+}
+
+.plus {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--ground);
+  font-size: 10px;
+  line-height: 19px;
+  font-variant-numeric: tabular-nums;
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.modal {
+  width: min(480px, 100%);
+  max-height: min(80vh, 720px);
+  display: flex;
+  flex-direction: column;
+  background: var(--ground);
+  border: 1px solid var(--edge);
+}
+
+/* Panes switch inside one dialog rather than stacking dialogs. */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--edge);
+}
+
+.tab {
+  flex: 1;
+  padding: 12px 10px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--ink-faint);
+  border-right: 1px solid var(--edge);
+}
+
+.tab:last-of-type {
+  border-right: none;
+}
+
+.tab:hover {
+  color: var(--ink-dim);
+}
+
+.tab[data-active="true"] {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.pane {
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.close {
+  padding: 11px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  border-top: 1px solid var(--edge);
+}
+
+.close:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
+}

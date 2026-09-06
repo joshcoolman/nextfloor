@@ -2,11 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import styles from "./Tower.module.css";
-import AddFloorControl from "./AddFloorControl";
+import ControlPanel from "./ControlPanel";
 import DeadFloor from "./DeadFloor";
-import KeyPanel from "./KeyPanel";
 import ZoomControl, { DEFAULT_ZOOM, ZOOM_STEPS } from "./ZoomControl";
-import DeleteFloors from "./DeleteFloors";
 import { useKeys } from "@/hooks/useKeys";
 import { frameOf, placeFloors } from "@/lib/building/layout";
 import type { Effort, Floor } from "@/lib/ai/types";
@@ -249,19 +247,20 @@ export default function Tower() {
         </p>
       )}
 
-      <footer className={styles.footer} data-controls>
-        <AddFloorControl
-          busy={busy}
-          pending={pendingCount}
-          disabled={!ready}
-          error={error}
-          onSubmit={addFloor}
-        />
-        {(!serverKeys || forceKeys) && (
-          <KeyPanel keys={keys} onChange={setKeys} serverKeys={serverKeys} />
-        )}
-        {local && <DeleteFloors floors={floors} onDelete={removeFloors} />}
-      </footer>
+      <ControlPanel
+        floors={floors}
+        busy={busy}
+        pending={pendingCount}
+        ready={ready}
+        error={error}
+        onSubmit={addFloor}
+        onDelete={removeFloors}
+        keys={keys}
+        onKeysChange={setKeys}
+        serverKeys={serverKeys}
+        showKeys={!serverKeys || forceKeys}
+        local={local}
+      />
 
       <ZoomControl zoom={zoom} onChange={changeZoom} />
     </main>

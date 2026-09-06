@@ -1,58 +1,21 @@
-.trigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  margin-top: 10px;
-  padding: 9px 12px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: var(--ink-dim);
-  border: 1px solid var(--edge);
-}
+
 
 .trigger:hover {
   color: var(--ink);
   border-color: var(--ink-faint);
 }
 
-.dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--danger);
-}
+
 
 .dot[data-ready="true"] {
   background: #5fd68a;
 }
 
-.backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(3px);
-}
 
-.modal {
-  width: min(460px, 100%);
-  background: var(--ground);
-  border: 1px solid var(--edge);
-}
 
-.heading {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px 14px;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  color: var(--ink-faint);
-  border-bottom: 1px solid var(--edge);
-}
+
+
+
 
 .body {
   padding: 14px;
@@ -92,10 +55,7 @@
   color: var(--ink-faint);
 }
 
-.actions {
-  display: flex;
-  border-top: 1px solid var(--edge);
-}
+
 
 .actions button {
   flex: 1;
