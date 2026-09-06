@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { TILE } from "@/lib/building/styleGuide";
+import { KEY_COLOUR } from "@/lib/image/alpha";
 import { RefusalError } from "../errors";
 import type { ImageProvider, Reference } from "./types";
 
@@ -31,6 +32,20 @@ const SAFETY_TOLERANCE = "6";
 /** 2K on a 4:1 frame is the spec sheet's 2048 x 512. */
 const RESOLUTION = "2K";
 
+/**
+ * Fallback when the app does not know its own public address. The reference is
+ * matted onto the key colour for the same reason the URL form is: a transparent
+ * PNG reaches the model as a checkerboard, which it then draws.
+ */
+async function matteDataUri(reference: Reference): Promise<string> {
+  const sharp = (await import("sharp")).default;
+  const flattened = await sharp(reference.bytes)
+    .flatten({ background: { r: KEY_COLOUR.r, g: KEY_COLOUR.g, b: KEY_COLOUR.b } })
+    .png()
+    .toBuffer();
+  return `data:image/png;base64,${flattened.toString("base64")}`;
+}
+
 export const fal: ImageProvider = {
   name: "fal",
   outputFormat: "png",
@@ -51,10 +66,7 @@ export const fal: ImageProvider = {
     };
 
     if (reference) {
-      input.image_urls = [
-        reference.url ??
-          `data:${reference.mimeType};base64,${reference.bytes.toString("base64")}`,
-      ];
+      input.image_urls = [reference.url ?? (await matteDataUri(reference))];
     }
 
     const response = await fetch(`${BASE}/${model}`, {

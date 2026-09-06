@@ -26,9 +26,9 @@ bleeding off every side with no black band, border or empty margin anywhere.
 
 STYLE (immutable):
 - Detailed pixel art. Crisp pixels, limited palette, consistent pixel scale.
-- TRUE ALPHA TRANSPARENCY outside the building tile. Do not draw a checkerboard
-  transparency pattern, a white, black, coloured, gradient or scenic background,
-  or shadows falling onto an imaginary ground.
+- Everything outside the building is flat, uniform, pure magenta (#FF00FF),
+  solid and even, with no texture, pattern, gradient or detail. Nothing of the
+  scene extends into it: no shadows, no glow, no spill of light.
 - Dark ambient light. Every bright area comes from a practical light source in
   the scene: lamps, screens, neon, windows, fire. Saturated colour appears only
   in those light sources, their spill, and signage.
