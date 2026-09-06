@@ -145,12 +145,42 @@ export async function clearStaticSlot(kind: FloorKind): Promise<string[]> {
 }
 
 /**
- * Claims the next floor slot and returns a pending row for it.
+ * The lowest floor number nothing visible occupies, falling back to one above
+ * the top of the building when the sequence is contiguous.
  *
- * The ordinal is allocated under an advisory lock rather than by reading max()
- * and inserting later: generation takes a minute or two, and several requests
- * in flight would otherwise all compute the same number and collide, with that
- * number baked into the artwork.
+ * Floor numbers are painted into the artwork and cannot be changed afterwards,
+ * so a deleted floor leaves a permanent hole. Filling the lowest gap first
+ * means the building stops accumulating them.
+ *
+ * A slot counts as free when no floor holds it, and also when the floor holding
+ * it is condemned and nobody kept it: such a row is invisible by design and is
+ * only waiting to be decided on. A condemned floor somebody kept is a real
+ * floor and holds its number like any other.
+ *
+ * The series runs to max + 1, so the fallback needs no special case: that value
+ * is never occupied.
+ */
+const FREE_ORDINAL = `
+  select min(n)::double precision
+    from generate_series(
+           1,
+           (select coalesce(max(ordinal), 0)::int + 1 from floors where kind = 'floor')
+         ) as n
+   where not exists (
+     select 1 from floors f
+      where f.kind = 'floor'
+        and f.ordinal = n
+        and (f.status <> 'dead' or f.meta->>'kept' = 'true')
+   )
+`;
+
+/**
+ * Claims a floor slot and returns a pending row for it.
+ *
+ * The ordinal is allocated under an advisory lock rather than by reading the
+ * building and inserting later: generation takes a minute or two, and several
+ * requests in flight would otherwise all compute the same number and collide,
+ * with that number baked into the artwork.
  *
  * The row exists from the moment the slot is claimed, so a pending floor
  * survives a browser refresh and shows as under construction.
@@ -161,13 +191,16 @@ export async function reserveFloor(theme: string): Promise<Floor> {
   try {
     await client.query("begin");
     await client.query("select pg_advisory_xact_lock(hashtext('nextfloor:ordinal'))");
+    // Clear the wreck first if this slot holds one. An unkept condemned floor
+    // is invisible and undecided; building over it is the decision.
+    await client.query(
+      `delete from floors
+        where kind = 'floor' and status = 'dead' and coalesce(meta->>'kept', '') <> 'true'
+          and ordinal = (${FREE_ORDINAL})`,
+    );
     const { rows } = await client.query<Row>(
       `insert into floors (id, ordinal, kind, status, theme_prompt, display_name, meta)
-       values (
-         $1,
-         (select coalesce(max(ordinal), 0) + 1 from floors where kind = 'floor'),
-         'floor', 'pending', $2, $3, '{}'::jsonb
-       )
+       values ($1, (${FREE_ORDINAL}), 'floor', 'pending', $2, $3, '{}'::jsonb)
        returning *`,
       [randomUUID(), theme, theme.slice(0, 40)],
     );
