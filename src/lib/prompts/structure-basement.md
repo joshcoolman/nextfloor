@@ -1,18 +1,16 @@
 STRUCTURE (immutable -- this is the basement of the building):
-- The lowest floor of a cutaway building, seen in isometric projection, cut into
-  the ground.
-- The cut face is PARALLEL to the picture plane: back walls are flat and face
-  the viewer square on, and the row of spaces runs straight across the frame as a
-  horizontal band. Do NOT rotate the building, do NOT converge the side walls.
-- Depth is shallow: only floors, ceilings, ledges and props show isometric
-  recession, going back and up to the right at 30 degrees, by a small amount.
-- The building fills the frame edge to edge and top to bottom, bleeding off all
-  four edges. No margin, no border, no empty band anywhere.
-- Far left edge band (about 7% of the width): the stair tower arrives from above
-  and ends at a landing on the basement floor.
-- Far right edge band (about 7% of the width): the elevator shaft bottoms out in
-  a pit with buffers, beside vertical pipe runs and conduit.
-- The walls here are old rough stone and brick foundation, not facade.
-- Along the bottom edge: a thick grey poured-concrete slab footing with a visible
-  chipped edge, spanning the full width.
-- Above it, a single storey of basement divided into five or six spaces.
+- The lowest floor of a cutaway building, drawn in true isometric projection,
+  cut into the ground.
+- The frame is very wide and short: 2048 x 512 pixels, aspect ratio 4:1.
+- Same geometry, scale and shell as every regular floor: the floor slab is a
+  long parallelogram receding back and up to the right, the back wall runs the
+  full width, and the exterior walls sit in the same positions.
+- The bottom edge is CLOSED: this floor has a foundation. Rough stone and brick
+  footing rather than facade.
+- The top is OPEN: a regular floor sits directly above and must butt against
+  this one with no seam.
+- Far left: the stair tower arrives from above and ends at a landing here.
+- Far right: the elevator shaft bottoms out in a pit with buffers, beside
+  vertical pipe runs and conduit.
+- The building fills the frame edge to edge, bleeding off the left, right and
+  top edges. No margin, no border, no background environment.

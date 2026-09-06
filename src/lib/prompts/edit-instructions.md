@@ -44,7 +44,8 @@ Do not crop, zoom, rotate, tilt, resize, widen, narrow, or otherwise modify the
 architectural shell. Think of the reference architecture as a locked template.
 Only redesign the spaces INSIDE the floor.
 
-FRAMING -- the reference bleeds off all four edges of the image, and so must this:
+FRAMING -- the frame is 2048 x 512, aspect ratio 4:1. The reference bleeds off
+all four edges of the image, and so must this:
 - The left and right edges of the image cut through the same exterior elements,
   at the same pixel positions, as the reference.
 - The top edge cuts straight through the ceiling slab and the bottom edge cuts
@@ -52,6 +53,8 @@ FRAMING -- the reference bleeds off all four edges of the image, and so must thi
 - No margin, no border, no empty band, no visible background environment around
   the building. Any sliver of sky past the shell is pure black, as in the
   reference.
+- The storey is OPEN at the top and bottom, exactly as the reference is, so that
+  identical floors butt against it above and below with no seam.
 - Do not add another floor, a roof, or a basement. Generate exactly ONE module.
 - Do not place floating objects outside the building.
 

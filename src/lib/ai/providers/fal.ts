@@ -28,8 +28,8 @@ const EDIT_MODEL = process.env.FAL_EDIT_MODEL || "fal-ai/nano-banana-pro/edit";
 /** Most permissive. Refusals are meant to produce dead floors, not silent blocks. */
 const SAFETY_TOLERANCE = "6";
 
-/** Matches the tile contract: enough resolution to zoom into the detail. */
-const RESOLUTION = "4K";
+/** 2K on a 4:1 frame is the spec sheet's 2048 x 512. */
+const RESOLUTION = "2K";
 
 export const fal: ImageProvider = {
   name: "fal",
@@ -40,7 +40,10 @@ export const fal: ImageProvider = {
     const input: Record<string, unknown> = {
       // The edit prompt already carries the reference contract in full.
       prompt,
-      aspect_ratio: TILE.aspectRatio,
+      // On an edit, "auto" inherits the reference tile's exact dimensions, which
+      // is stricter than naming a ratio -- and the edit models' ratio enums do
+      // not include 4:1 anyway.
+      aspect_ratio: reference ? "auto" : TILE.aspectRatio,
       output_format: "png",
       resolution: RESOLUTION,
       num_images: 1,

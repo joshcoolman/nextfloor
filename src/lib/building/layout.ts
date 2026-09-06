@@ -1,10 +1,9 @@
 import { TILE } from "./styleGuide";
 import type { Floor } from "@/lib/ai/types";
 
-/** Content-space width of one tile. Matches the generated tile's 2K width. */
-export const TILE_WIDTH = 2560;
-export const TILE_HEIGHT = Math.round((TILE_WIDTH * 9) / 21);
-/** Tiles overlap by the slab so seam drift hides inside the concrete. */
+export const TILE_WIDTH = TILE.width;
+export const TILE_HEIGHT = TILE.height;
+/** Floors are drawn to butt exactly; overlap is a hedge against seam drift. */
 export const TILE_PITCH = Math.round(TILE_HEIGHT * (1 - TILE.slabOverlap));
 
 export interface PlacedFloor {

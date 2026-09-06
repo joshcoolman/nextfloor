@@ -38,8 +38,12 @@ of every floor generated before the change.
 
 ## Starting tiles
 
+`docs/reference/building-spec-sheet.png` is the drawn contract: 2048 x 512, 4:1,
+identical shell on every floor, regular floors open top and bottom, roof closed
+at the top, basement closed at the bottom.
+
 Drop `floor.png`, `roof.png` and `basement.png` into `public/building/` and
-seeding imports them instead of generating. All three must be 21:9 and share one
+seeding imports them instead of generating. All three must be 4:1 and share one
 shell, since `floor.png` becomes the permanent reference every later floor is
 matched against. Drawing that tile on purpose beats rolling for it.
 

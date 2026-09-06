@@ -18,9 +18,9 @@ pixel grid, flat blocks of colour, hard aliased edges, limited palette. Crowded
 with tiny pixel characters and clutter, warm glowing practical lights against
 darkness. Absolutely NOT a photograph, NOT a 3D render, NOT a CAD drawing, NOT an
 architectural visualisation. No smooth gradients, no realistic materials, no
-camera depth of field. The interior fills the ENTIRE frame from the very top edge
-to the very bottom edge, corner to corner, bleeding off all four sides with no
-black band, border or empty margin anywhere.
+camera depth of field. The frame is a very wide, short band -- 2048 x 512 pixels,
+aspect ratio 4:1 -- and the interior fills it entirely, corner to corner,
+bleeding off every side with no black band, border or empty margin anywhere.
 
 ## STYLE
 

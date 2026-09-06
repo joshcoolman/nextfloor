@@ -4,14 +4,19 @@
  */
 
 export const TILE = {
-  /** Hard constraint from image model support. A floor band is not free-form. */
-  aspectRatio: "21:9",
   /**
-   * Fraction of tile height that the slab occupies. Tiles stack with this much
-   * overlap so the upper tile's concrete slab covers the lower tile's ceiling
-   * line, and seam drift hides inside the concrete instead of showing as a gap.
+   * From the building spec sheet: 2048 x 512, aspect ratio 4:1, every floor
+   * identical. Not a free choice -- the reference art is drawn to it.
    */
-  slabOverlap: 0.035,
+  aspectRatio: "4:1",
+  width: 2048,
+  height: 512,
+  /**
+   * Regular floors are drawn open at the top and bottom and are designed to
+   * butt exactly, so no overlap is needed. Raise this only if real tiles show
+   * a seam.
+   */
+  slabOverlap: 0,
 } as const;
 
 export const BASE_FLOOR_THEME = "the ground floor lobby of an old mixed-use city building";
