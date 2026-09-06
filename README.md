@@ -108,9 +108,6 @@ that cannot lose the building. Issue #1 remains the overall spec.
 
 Known gaps, in order of how much they cost:
 
-- `public/middle-floor.png` carries white edge fringe from an early keying pass
-  and needs re-exporting with real alpha. It is the reference every generated
-  floor is edited from, so the damage propagates.
 - Generated tiles come back 2912x1440 with the building filling ~99.5% of the
   canvas; the static tiles are 1774x887 filling ~94-97%. Floors therefore sit a
   few percent large with a different vertical offset and do not line up
