@@ -3,6 +3,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding-bottom: 64px;
   background: var(--ground);
 }
 
@@ -65,10 +66,14 @@
   border-color: var(--danger);
 }
 
-/* Last item on the page, in normal flow. */
+/* Pinned, because the building grows without limit and the controls should not
+   drift off the bottom of a hundred-storey page. */
 .footer {
-  width: min(560px, calc(100vw - 32px));
-  padding: 40px 0 64px;
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 100;
+  width: clamp(280px, 25vw, 420px);
 }
 
 .empty {
@@ -93,6 +98,14 @@
   inset: 0;
   z-index: 2;
   pointer-events: none;
+  /* Masked by the tile itself, so the tint follows the building's silhouette
+     instead of filling its bounding box. */
+  -webkit-mask-image: url("/construction-floor.png");
+  mask-image: url("/construction-floor.png");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
   background: linear-gradient(
     to bottom,
     transparent 0%,

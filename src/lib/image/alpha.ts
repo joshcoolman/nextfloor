@@ -103,6 +103,20 @@ const FRINGE_DISTANCE = 140;
  * its cleared neighbours. Estimating `a` from how far P sits from B recovers
  * both the coverage and the underlying colour F.
  */
+export async function defringeImage(input: Buffer): Promise<Buffer> {
+  const image = sharp(input).ensureAlpha();
+  const metadata = await image.metadata();
+  const width = metadata.width ?? 0;
+  const height = metadata.height ?? 0;
+  if (!width || !height) return input;
+
+  const raw = await image.raw().toBuffer();
+  defringe(raw, width, height);
+  return sharp(raw, { raw: { width, height, channels: 4 } })
+    .png()
+    .toBuffer();
+}
+
 function defringe(raw: Buffer, width: number, height: number): void {
   const original = Buffer.from(raw);
   const at = (x: number, y: number) => (y * width + x) * 4;

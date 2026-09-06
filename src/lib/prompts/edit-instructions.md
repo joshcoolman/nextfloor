@@ -15,6 +15,15 @@ pixel-art building.
 
 THEME: {{theme}}
 
+FLOOR NUMBER -- THE ONE PERMITTED EXTERIOR CHANGE:
+The reference tile has a floor number painted large on the exterior wall beside
+the elevator door. This floor is number {{number}}. Paint {{number}} in that
+exact position, at the same size, in the same font, colour and weathering as the
+reference's number, and remove the reference's number completely. Everything
+else about that wall and the rest of the exterior stays identical. The number
+{{number}} must appear there, must be clearly legible, and must not appear
+anywhere else on the floor. Do not copy the reference's number.
+
 PURPOSE:
 This image is one independently generated floor in a potentially very tall
 building. Many floor images will be layered together in HTML. Therefore the
@@ -62,13 +71,6 @@ place a sign containing the theme. Express the theme through architecture, props
 furniture, characters, lighting, activities, signage, and environmental details.
 
 {{content}}
-
-FLOOR NUMBER:
-The reference tile has a floor number painted on the exterior wall beside the
-elevator door. Paint the number {{number}} there instead, in the same position,
-same size, same font, same colour, same weathering. Change nothing else about
-that wall. The number must read clearly as {{number}} and must not appear
-anywhere else on the floor.
 
 TRANSPARENCY -- CRITICAL:
 Output PNG with TRUE ALPHA TRANSPARENCY. Everything outside the building tile

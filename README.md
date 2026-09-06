@@ -81,6 +81,15 @@ Drag to pan, wheel to pan, cmd/ctrl-wheel to zoom at the cursor. The gutter on
 the left labels each floor and holds its delete button. Floor 1 is the reference
 tile and cannot be deleted.
 
+## Deploying
+
+The Railway service is connected to `main`: merging deploys. The database is
+shared, so floors added locally already exist in production and appear as soon
+as the code catches up.
+
+`ALLOW_SERVER_KEYS` is off in production, so visitors bring their own Anthropic
+and fal keys.
+
 ## Status
 
 **Last shipped**
