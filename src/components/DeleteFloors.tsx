@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import styles from "./DeleteFloors.module.css";
 import type { Floor } from "@/lib/ai/types";
 
@@ -43,15 +44,20 @@ export default function DeleteFloors({ floors, onDelete }: Props) {
   const label = (floor: Floor) =>
     floor.kind === "roof" ? "RF" : floor.kind === "basement" ? "B" : String(Math.round(floor.ordinal));
 
-  if (!open) {
-    return (
-      <button className={styles.trigger} onClick={() => setOpen(true)}>
-        DELETE FLOORS
-      </button>
-    );
-  }
+  const trigger = (
+    <button className={styles.trigger} onClick={() => setOpen(true)}>
+      DELETE FLOORS
+    </button>
+  );
 
-  return (
+  if (!open) return trigger;
+
+  /*
+   * Portalled to the body on purpose. The control rail sets backdrop-filter,
+   * which makes it a containing block for fixed-position descendants -- so a
+   * full-screen backdrop rendered inside it gets clipped to the rail.
+   */
+  const modal = (
     <div
       className={styles.backdrop}
       onClick={(event) => {
@@ -119,5 +125,12 @@ export default function DeleteFloors({ floors, onDelete }: Props) {
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      {trigger}
+      {createPortal(modal, document.body)}
+    </>
   );
 }
