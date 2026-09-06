@@ -2,7 +2,7 @@
 
 eye candy mostly. useless mainly.
 
-**[See it running →](https://nextfloor-production.up.railway.app)**
+**[See it running →](https://nextfloor.up.railway.app)**
 
 Bring your own Anthropic and fal keys to add a floor; looking costs nothing.
 
