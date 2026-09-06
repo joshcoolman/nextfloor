@@ -9,10 +9,27 @@
  * Static tiles imported from public/ are skipped: they have genuine alpha and
  * nothing to repair.
  *
- * Usage: DATABASE_URL=... node scripts/refringe.mjs [--dry]
+ * Usage: node scripts/refringe.mjs [--dry]
  */
+import { existsSync, readFileSync } from "node:fs";
 import pg from "pg";
 import { defringeImage } from "../src/lib/image/alpha.ts";
+
+// Plain node does not read .env.local the way Next does, so load it here rather
+// than making every invocation prefix the connection string by hand.
+if (!process.env.DATABASE_URL && existsSync(".env.local")) {
+  for (const line of readFileSync(".env.local", "utf8").split("\n")) {
+    const match = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (match && !process.env[match[1]]) {
+      process.env[match[1]] = match[2].replace(/^["']|["']$/g, "");
+    }
+  }
+}
+
+if (!process.env.DATABASE_URL) {
+  console.error("DATABASE_URL is not set, and no .env.local was found. Run from the repo root.");
+  process.exit(1);
+}
 
 const dry = process.argv.includes("--dry");
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
