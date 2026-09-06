@@ -2,25 +2,32 @@
   width: 100%;
 }
 
-.form {
-  display: flex;
-  align-items: stretch;
-  border: 1px solid var(--edge);
-  background: rgba(0, 0, 0, 0.92);
-  backdrop-filter: blur(8px);
+.field {
+  display: grid;
+  gap: 6px;
 }
 
-.form:focus-within {
-  border-color: var(--ink-faint);
+.label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--ink-faint);
 }
 
 .input {
-  flex: 1;
-  min-width: 0;
-  background: none;
-  border: none;
+  width: 100%;
+  min-height: 92px;
+  resize: vertical;
+  padding: 10px 12px;
+  font: inherit;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--ground-lift);
+  border: 1px solid var(--edge);
   outline: none;
-  padding: 13px 15px;
+}
+
+.input:focus {
+  border-color: var(--ink-faint);
 }
 
 .input::placeholder {
@@ -28,16 +35,19 @@
 }
 
 .submit {
-  padding: 0 20px;
-  letter-spacing: 0.08em;
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  letter-spacing: 0.1em;
   font-size: 11px;
   color: var(--ink);
-  border-left: 1px solid var(--edge);
-  transition: background 140ms ease;
+  border: 1px solid var(--edge);
+  transition: background 140ms ease, border-color 140ms ease;
 }
 
 .submit:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.08);
+  border-color: var(--ink-faint);
 }
 
 .submit:disabled {
@@ -47,8 +57,6 @@
 
 .building {
   border: 1px solid var(--edge);
-  background: rgba(0, 0, 0, 0.94);
-  backdrop-filter: blur(8px);
   padding: 13px 15px;
 }
 
@@ -77,30 +85,9 @@
   transition: width 900ms linear;
 }
 
-.suggestions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.suggestion {
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
-  color: var(--ink-faint);
-  border: 1px solid var(--edge);
-  padding: 4px 8px;
-  background: rgba(0, 0, 0, 0.7);
-  transition: color 120ms ease, border-color 120ms ease;
-}
-
-.suggestion:hover {
-  color: var(--ink);
-  border-color: var(--ink-faint);
-}
-
 .error {
   margin: 8px 0 0;
   font-size: 11px;
+  line-height: 1.5;
   color: var(--danger);
 }

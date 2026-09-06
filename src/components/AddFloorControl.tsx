@@ -3,16 +3,6 @@
 import { useEffect, useState } from "react";
 import styles from "./AddFloorControl.module.css";
 
-const SUGGESTIONS = [
-  "80s video games",
-  "mad scientist laboratory",
-  "1970s detective office",
-  "alien hotel",
-  "japanese convenience store",
-  "haunted library",
-  "cyberpunk noodle market",
-];
-
 /** Generation takes a while. Say what is happening rather than showing a spinner. */
 const STAGES: Array<[seconds: number, label: string]> = [
   [0, "INTERPRETING THEME"],
@@ -64,36 +54,31 @@ export default function AddFloorControl({ busy, disabled, error, onSubmit }: Pro
   }
 
   return (
-    <div className={styles.dock} data-no-pan>
-      <div className={styles.suggestions}>
-        {SUGGESTIONS.map((item) => (
-          <button key={item} className={styles.suggestion} onClick={() => setTheme(item)}>
-            {item}
-          </button>
-        ))}
-      </div>
-      <form
-        className={styles.form}
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (theme.trim()) {
-            onSubmit(theme.trim());
-            setTheme("");
-          }
-        }}
-      >
-        <input
+    <form
+      className={styles.dock}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (theme.trim()) {
+          onSubmit(theme.trim());
+          setTheme("");
+        }
+      }}
+    >
+      <label className={styles.field}>
+        <span className={styles.label}>DESCRIBE ROOM</span>
+        <textarea
           className={styles.input}
           value={theme}
           maxLength={300}
-          placeholder="Describe a floor..."
+          rows={4}
+          placeholder="A 1970s detective office, blinds drawn, smoke in the lamplight..."
           onChange={(event) => setTheme(event.target.value)}
         />
-        <button className={styles.submit} type="submit" disabled={disabled || !theme.trim()}>
-          BUILD
-        </button>
-      </form>
+      </label>
+      <button className={styles.submit} type="submit" disabled={disabled || !theme.trim()}>
+        CREATE FLOOR
+      </button>
       {error && <p className={styles.error}>{error}</p>}
-    </div>
+    </form>
   );
 }
