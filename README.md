@@ -96,6 +96,12 @@ as the code catches up.
 `ALLOW_SERVER_KEYS` is off in production, so visitors bring their own Anthropic
 and fal keys.
 
+## Conventions
+
+Layout, naming, styling, docs and the issue workflow follow
+[project-standard](https://github.com/joshcoolman/project-standard). Where this
+repo diverges, the divergence is an open issue rather than a local rule.
+
 ## Status
 
 **Last shipped**
