@@ -1,22 +1,19 @@
-.panel {
-  width: 100%;
-  margin-top: 10px;
-  border: 1px solid var(--edge);
-}
-
-.header {
+.trigger {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding: 10px 12px;
-  letter-spacing: 0.08em;
+  margin-top: 10px;
+  padding: 9px 12px;
   font-size: 11px;
+  letter-spacing: 0.08em;
   color: var(--ink-dim);
+  border: 1px solid var(--edge);
 }
 
-.header:hover {
+.trigger:hover {
   color: var(--ink);
+  border-color: var(--ink-faint);
 }
 
 .dot {
@@ -24,17 +21,43 @@
   height: 7px;
   border-radius: 50%;
   background: var(--danger);
-  box-shadow: 0 0 10px currentColor;
 }
 
 .dot[data-ready="true"] {
   background: #5fd68a;
 }
 
-.body {
-  padding: 0 12px 14px;
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
   display: grid;
-  gap: 10px;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.modal {
+  width: min(460px, 100%);
+  background: var(--ground);
+  border: 1px solid var(--edge);
+}
+
+.heading {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 14px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--ink-faint);
+  border-bottom: 1px solid var(--edge);
+}
+
+.body {
+  padding: 14px;
+  display: grid;
+  gap: 12px;
 }
 
 .field {
@@ -51,8 +74,10 @@
 .field input {
   background: var(--ground-lift);
   border: 1px solid var(--edge);
-  padding: 7px 9px;
+  padding: 9px 10px;
+  font: inherit;
   font-size: 12px;
+  color: var(--ink);
   outline: none;
 }
 
@@ -65,4 +90,22 @@
   font-size: 11px;
   line-height: 1.55;
   color: var(--ink-faint);
+}
+
+.actions {
+  display: flex;
+  border-top: 1px solid var(--edge);
+}
+
+.actions button {
+  flex: 1;
+  padding: 11px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+}
+
+.actions button:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--ink);
 }

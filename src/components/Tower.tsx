@@ -15,6 +15,8 @@ export default function Tower() {
   const [floors, setFloors] = useState<Floor[]>([]);
   const [serverKeys, setServerKeys] = useState(false);
   const [local, setLocal] = useState(false);
+  /** ?keys forces the panel open even when the host supplies them. */
+  const [forceKeys, setForceKeys] = useState(false);
   const [busy, setBusy] = useState(false);
   const pendingCount = floors.filter((floor) => floor.status === "pending").length;
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +31,10 @@ export default function Tower() {
   /** How much each tile rides up over the one below it. */
   const overlap = frame.height - frame.pitch;
 
+
+  useEffect(() => {
+    setForceKeys(new URLSearchParams(window.location.search).has("keys"));
+  }, []);
 
   useEffect(() => {
     try {
@@ -252,7 +258,9 @@ export default function Tower() {
           onSubmit={addFloor}
         />
         <ZoomControl zoom={zoom} onChange={changeZoom} />
-        <KeyPanel keys={keys} onChange={setKeys} serverKeys={serverKeys} />
+        {(!serverKeys || forceKeys) && (
+          <KeyPanel keys={keys} onChange={setKeys} serverKeys={serverKeys} />
+        )}
         {local && <DeleteFloors floors={floors} onDelete={removeFloors} />}
       </footer>
     </main>
