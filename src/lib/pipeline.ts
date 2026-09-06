@@ -22,6 +22,7 @@ import {
 } from "@/lib/db/floors";
 import { deleteImage, getImage, putImage } from "@/lib/storage";
 import { restoreAlpha } from "@/lib/image/alpha";
+import { analyzeTone, matchTone } from "@/lib/image/tone";
 import { assertConsistentTiles, readStartingTile } from "@/lib/building/importTiles";
 
 export interface GenerateOptions {
@@ -109,7 +110,10 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor> {
 
   // Models return the transparency checkerboard as opaque grey often enough
   // that this has to be a pipeline stage rather than a manual clean-up.
-  const bytes = await restoreAlpha(tile.bytes);
+  const keyed = await restoreAlpha(tile.bytes);
+  // Generated floors come back flatter than the drawn artwork, so they are
+  // graded to match the reference tile they were built from.
+  const bytes = reference ? await matchTone(keyed, await analyzeTone(reference.bytes)) : keyed;
   const mimeType = bytes === tile.bytes ? tile.mimeType : "image/png";
   const extension = mimeType === "image/png" ? "png" : "jpg";
   const key = `floors/${randomUUID()}.${extension}`;
