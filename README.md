@@ -94,22 +94,33 @@ and fal keys.
 
 **Last shipped**
 
-- Local-only floor deletion, gated on the Host header rather than hidden in the UI.
-- Generated tiles graded to the reference tile's tone; they came back ~20% brighter and ~20% flatter.
-- Edge de-fringing on keyed tiles, and `scripts/refringe.mjs` to re-clean stored ones.
-- The tower is a plain scrolling page with a reserved control rail and CSS zoom.
+- One dialog with panes (add / floors / keys) behind a single round button; the control rail is gone.
+- Background queue: a floor claims its slot and returns immediately, generating in `after()`. A refresh loses nothing.
+- Checkerboard detection by orphan-pixel fraction, rejected and retried once, then a dead floor.
+- Theme interpreter on Sonnet with selectable effort; theme cap raised to 2000 characters.
+- Zoom as a pinned stepper capped at 100%, plus cmd-scroll and cmd-shift-arrows.
 - Static roof, reference floor and basement imported from `public/`; generated floors are edits of the reference.
-- fal (Nano Banana) is the only image provider; Google removed.
 
 **Up next**
 
-Issue #1 is the spec. Open questions: floor numbers are baked into the artwork
-so deleting a middle floor leaves the ones above it mislabelled; the model
-occasionally draws a checkerboard patch inside the art that border flood fill
-cannot reach.
+Issue #4 is the next piece of work: canvas-style pan and zoom, with a camera
+that cannot lose the building. Issue #1 remains the overall spec.
+
+Known gaps, in order of how much they cost:
+
+- `public/middle-floor.png` carries white edge fringe from an early keying pass
+  and needs re-exporting with real alpha. It is the reference every generated
+  floor is edited from, so the damage propagates.
+- Generated tiles come back 2912x1440 with the building filling ~99.5% of the
+  canvas; the static tiles are 1774x887 filling ~94-97%. Floors therefore sit a
+  few percent large with a different vertical offset and do not line up
+  precisely. The fix is normalising each tile's bounding box to the reference's.
+- Dead floors render in CSS. Artwork for a burnt-out floor would drop into
+  `public/dead-floor.png` and replace it.
+- Floor numbers are baked into the artwork, so deleting a middle floor leaves
+  the ones above it mislabelled.
 
 **Focus**
 
-Generate floors and watch what the shell does over ten or twenty of them. The
-whole experiment is whether the edit path holds the building together at depth,
-and nothing else matters until that is known.
+Open issue #4 and build the canvas. The camera spec is written there and is the
+thing to implement, not to redesign.
