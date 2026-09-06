@@ -5,18 +5,23 @@
 
 export const TILE = {
   /**
-   * From the building spec sheet: 2048 x 512, aspect ratio 4:1, every floor
-   * identical. Not a free choice -- the reference art is drawn to it.
+   * Fallback frame, used only when generating a tile with no reference to
+   * follow. Real dimensions come from the artwork: every tile in the database
+   * carries its own size and the layout follows that.
    */
-  aspectRatio: "4:1",
-  width: 2048,
-  height: 512,
+  aspectRatio: "2:1",
+  width: 1774,
+  height: 887,
   /**
-   * Regular floors are drawn open at the top and bottom and are designed to
-   * butt exactly, so no overlap is needed. Raise this only if real tiles show
-   * a seam.
+   * Vertical repeat as a fraction of tile height.
+   *
+   * In isometric art the frame is much taller than one storey, because it also
+   * contains the depth receding away from the viewer. Stacking tiles a full
+   * frame apart therefore leaves a large gap. This is the floor-to-floor
+   * distance measured against the artwork; tiles are transparent PNGs, so
+   * overlapping them composites cleanly rather than hiding the floor below.
    */
-  slabOverlap: 0,
+  pitchRatio: 0.42,
 } as const;
 
 export const BASE_FLOOR_THEME = "the ground floor lobby of an old mixed-use city building";

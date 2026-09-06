@@ -1,10 +1,24 @@
 import { TILE } from "./styleGuide";
 import type { Floor } from "@/lib/ai/types";
 
+/** Fallbacks only; a building with floors in it uses the floors' own size. */
 export const TILE_WIDTH = TILE.width;
 export const TILE_HEIGHT = TILE.height;
-/** Floors are drawn to butt exactly; overlap is a hedge against seam drift. */
-export const TILE_PITCH = Math.round(TILE_HEIGHT * (1 - TILE.slabOverlap));
+export const TILE_PITCH = Math.round(TILE_HEIGHT * TILE.pitchRatio);
+
+export interface Frame {
+  width: number;
+  height: number;
+  pitch: number;
+}
+
+/** The artwork defines the frame. Constants are only used for an empty building. */
+export function frameOf(floors: Floor[]): Frame {
+  const sized = floors.find((floor) => floor.width && floor.height);
+  const width = sized?.width ?? TILE_WIDTH;
+  const height = sized?.height ?? TILE_HEIGHT;
+  return { width, height, pitch: Math.round(height * TILE.pitchRatio) };
+}
 
 export interface PlacedFloor {
   floor: Floor;
@@ -16,16 +30,16 @@ export interface PlacedFloor {
 }
 
 /** Top of the tower first, which is how the building is read on screen. */
-export function placeFloors(floors: Floor[]): PlacedFloor[] {
+export function placeFloors(floors: Floor[], frame: Frame): PlacedFloor[] {
   const ordered = [...floors].sort((a, b) => b.ordinal - a.ordinal);
   return ordered.map((floor, index) => ({
     floor,
-    top: index * TILE_PITCH,
-    center: index * TILE_PITCH + TILE_HEIGHT / 2,
+    top: index * frame.pitch,
+    center: index * frame.pitch + frame.height / 2,
     label: floor.kind === "floor" ? Math.round(floor.ordinal) : null,
   }));
 }
 
-export function towerHeight(count: number): number {
-  return count === 0 ? TILE_HEIGHT : (count - 1) * TILE_PITCH + TILE_HEIGHT;
+export function towerHeight(count: number, frame: Frame): number {
+  return count === 0 ? frame.height : (count - 1) * frame.pitch + frame.height;
 }

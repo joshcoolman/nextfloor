@@ -20,7 +20,7 @@ import {
   referenceTile,
 } from "@/lib/db/floors";
 import { getImage, putImage } from "@/lib/storage";
-import { readStartingTile } from "@/lib/building/importTiles";
+import { assertConsistentTiles, readStartingTile } from "@/lib/building/importTiles";
 
 export interface GenerateOptions {
   keys: Keys;
@@ -183,6 +183,7 @@ async function importFloor(
  * lobby first, and the caps are matched to it.
  */
 export async function seedBuilding(keys: Keys): Promise<Floor[]> {
+  assertConsistentTiles();
   const existing = await listFloors();
   const created: Floor[] = [];
 

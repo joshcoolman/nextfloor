@@ -42,10 +42,22 @@ of every floor generated before the change.
 identical shell on every floor, regular floors open top and bottom, roof closed
 at the top, basement closed at the bottom.
 
-Drop `floor.png`, `roof.png` and `basement.png` into `public/building/` and
-seeding imports them instead of generating. All three must be 4:1 and share one
-shell, since `floor.png` becomes the permanent reference every later floor is
-matched against. Drawing that tile on purpose beats rolling for it.
+`public/top-floor.png`, `public/middle-floor.png` and `public/bottom-floor.png`
+are the static building: roof, reference floor, basement. Seeding imports them
+instead of generating, and every generated floor is an edit of the middle one.
+They must share one frame — the import refuses tiles that disagree.
+
+Tiles are transparent PNGs composited over the black page. If a generator bakes
+the transparency checkerboard in as opaque grey squares, restore real alpha with:
+
+```bash
+node scripts/dealpha.mjs public/bottom-floor.png
+```
+
+`TILE.pitchRatio` in `src/lib/building/styleGuide.ts` is the vertical repeat as a
+fraction of tile height. It is well below 1 because an isometric frame is much
+taller than one storey — it also contains the depth receding from the viewer, so
+stacking tiles a full frame apart leaves a large gap.
 
 ## Running it
 

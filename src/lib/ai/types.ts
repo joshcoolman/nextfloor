@@ -30,5 +30,8 @@ export interface Floor {
   spec: FloorSpec | null;
   failureReason: string | null;
   meta: Record<string, unknown>;
+  /** Pixel size of the tile, so the layout follows the art rather than a constant. */
+  width: number | null;
+  height: number | null;
   createdAt: string;
 }

@@ -8,13 +8,7 @@ import KeyPanel from "./KeyPanel";
 import Navigator from "./Navigator";
 import { useKeys } from "@/hooks/useKeys";
 import { usePanZoom } from "@/hooks/usePanZoom";
-import {
-  TILE_HEIGHT,
-  TILE_WIDTH,
-  placeFloors,
-  towerHeight,
-  type PlacedFloor,
-} from "@/lib/building/layout";
+import { frameOf, placeFloors, towerHeight, type PlacedFloor } from "@/lib/building/layout";
 import type { Floor } from "@/lib/ai/types";
 
 export default function Tower() {
@@ -28,11 +22,12 @@ export default function Tower() {
   const framedRef = useRef(false);
 
   const { keys, setKeys, headers, loaded } = useKeys();
-  const placed = useMemo(() => placeFloors(floors), [floors]);
-  const height = towerHeight(placed.length);
+  const frame = useMemo(() => frameOf(floors), [floors]);
+  const placed = useMemo(() => placeFloors(floors, frame), [floors, frame]);
+  const height = towerHeight(placed.length, frame);
 
   const { viewportRef, transform, focusOn, zoomAt } = usePanZoom({
-    contentWidth: TILE_WIDTH,
+    contentWidth: frame.width,
     contentHeight: height,
   });
 
@@ -67,9 +62,9 @@ export default function Tower() {
     if (!viewport) return;
     framedRef.current = true;
     const rect = viewport.getBoundingClientRect();
-    const scale = Math.min((rect.width * 0.82) / TILE_WIDTH, (rect.height * 0.86) / height);
+    const scale = Math.min((rect.width * 0.82) / frame.width, (rect.height * 0.86) / height);
     focusOn(height / 2, scale);
-  }, [focusOn, height, placed.length, viewportRef]);
+  }, [focusOn, frame.width, height, placed.length, viewportRef]);
 
   const post = useCallback(
     async (url: string, body?: unknown) => {
@@ -144,7 +139,7 @@ export default function Tower() {
         <div
           className={styles.stage}
           style={{
-            width: TILE_WIDTH,
+            width: frame.width,
             height,
             transform: `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${transform.scale})`,
           }}
@@ -153,7 +148,7 @@ export default function Tower() {
             <div
               key={item.floor.id}
               className={`${styles.tile} ${item.floor.id === newest ? styles.settle : ""}`}
-              style={{ top: item.top, width: TILE_WIDTH, height: TILE_HEIGHT }}
+              style={{ top: item.top, width: frame.width, height: frame.height }}
             >
               {item.floor.status === "dead" ? (
                 <DeadFloor floor={item.floor} />

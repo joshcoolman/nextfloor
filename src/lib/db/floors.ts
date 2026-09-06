@@ -34,6 +34,8 @@ function toFloor(row: Row): Floor {
     spec: row.spec,
     failureReason: row.failure_reason,
     meta: row.meta,
+    width: row.image_width,
+    height: row.image_height,
     createdAt: row.created_at.toISOString(),
   };
 }
