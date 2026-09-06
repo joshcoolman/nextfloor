@@ -82,7 +82,7 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor> {
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     attempts = attempt;
     try {
-      tile = await generateFloorImage(options.keys.google, prompt, reference);
+      tile = await generateFloorImage(options.keys, prompt, reference);
       break;
     } catch (error) {
       if (error instanceof RefusalError) {

@@ -12,7 +12,7 @@ interface Props {
 
 export default function KeyPanel({ keys, onChange, serverKeys }: Props) {
   const [open, setOpen] = useState(false);
-  const ready = serverKeys || Boolean(keys.anthropic && keys.google);
+  const ready = serverKeys || Boolean(keys.anthropic && (keys.fal || keys.google));
 
   return (
     <aside className={styles.panel} data-no-pan>
@@ -32,17 +32,27 @@ export default function KeyPanel({ keys, onChange, serverKeys }: Props) {
             />
           </label>
           <label className={styles.field}>
-            <span>GOOGLE — draws the floor</span>
+            <span>FAL — draws the floor</span>
+            <input
+              type="password"
+              value={keys.fal}
+              placeholder={serverKeys ? "using the host's key" : "fal key"}
+              onChange={(event) => onChange({ ...keys, fal: event.target.value })}
+            />
+          </label>
+          <label className={styles.field}>
+            <span>GOOGLE — draws the floor, if no fal key</span>
             <input
               type="password"
               value={keys.google}
-              placeholder={serverKeys ? "using the host's key" : "AIza..."}
+              placeholder={serverKeys ? "using the host's key" : "AIza... or AQ..."}
               onChange={(event) => onChange({ ...keys, google: event.target.value })}
             />
           </label>
           <p className={styles.note}>
-            Kept in this browser only. Sent with each generation request, never stored
-            on the server. Building a floor spends your own credit.
+            One image key is enough. fal is preferred: it emits PNG, and pixel art
+            through JPEG loses the crisp edges. Kept in this browser only, sent with
+            each request, never stored on the server. Floors spend your own credit.
           </p>
         </div>
       )}

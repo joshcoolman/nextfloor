@@ -7,9 +7,10 @@ const STORAGE_KEY = "nextfloor.keys";
 export interface KeyPair {
   anthropic: string;
   google: string;
+  fal: string;
 }
 
-const EMPTY: KeyPair = { anthropic: "", google: "" };
+const EMPTY: KeyPair = { anthropic: "", google: "", fal: "" };
 
 /**
  * Keys live in this browser and nowhere else. They are sent as request headers
@@ -42,6 +43,7 @@ export function useKeys() {
     const out: Record<string, string> = { "content-type": "application/json" };
     if (keys.anthropic) out["x-anthropic-key"] = keys.anthropic;
     if (keys.google) out["x-google-key"] = keys.google;
+    if (keys.fal) out["x-fal-key"] = keys.fal;
     return out;
   }, [keys]);
 
