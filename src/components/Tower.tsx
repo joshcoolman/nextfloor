@@ -23,6 +23,8 @@ export default function Tower() {
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
 
   const [reopen, setReopen] = useState(0);
+  /** The floor faded out of the way while a floor below it is held down. */
+  const [peeked, setPeeked] = useState<string | null>(null);
   const [deciding, setDeciding] = useState(false);
   /** Floors this browser started, so only its own failures interrupt it. */
   const mine = useRef<Set<string>>(new Set());
@@ -235,6 +237,41 @@ export default function Tower() {
     }
   }, []);
 
+  /**
+   * A held floor lifts the one above it out of the way.
+   *
+   * Tiles overlap -- that is what makes the tower read as one building -- so the
+   * floor above always covers the back of the floor below. Release is bound to
+   * the window rather than the tile: letting go after the pointer has wandered
+   * off the tile still has to restore it, or a floor stays ghosted.
+   */
+  useEffect(() => {
+    if (!peeked) return;
+    const release = () => setPeeked(null);
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
+    window.addEventListener("blur", release);
+    return () => {
+      window.removeEventListener("pointerup", release);
+      window.removeEventListener("pointercancel", release);
+      window.removeEventListener("blur", release);
+    };
+  }, [peeked]);
+
+  /**
+   * The floor drawn immediately above this one, or null when there is none and
+   * when it is the roof. The roof is the building's lid rather than a storey,
+   * and fading it just punches a hole in the sky.
+   */
+  const above = useCallback(
+    (index: number): string | null => {
+      const over = placed[index - 1]?.floor;
+      if (!over || over.kind === "roof") return null;
+      return over.id;
+    },
+    [placed],
+  );
+
   /** A new floor lands at the top of the tower; go and look at it. */
   useEffect(() => {
     if (!newest) return;
@@ -265,8 +302,9 @@ export default function Tower() {
                 key={item.floor.id}
                 id={item.floor.id}
                 className={`${styles.tile} ${styles.construction} ${styles.settle}`}
-                style={style}
+                style={{ ...style, opacity: item.floor.id === peeked ? 0.05 : undefined }}
                 title={item.floor.themePrompt}
+                onPointerDown={() => setPeeked(above(index))}
               >
                 <img
                   src="/construction-floor.png"
@@ -285,7 +323,12 @@ export default function Tower() {
               key={item.floor.id}
               id={item.floor.id}
               className={`${styles.tile} ${item.floor.id === newest ? styles.settle : ""}`}
-              style={style}
+              style={{ ...style, opacity: item.floor.id === peeked ? 0.05 : undefined }}
+              // A press on the REMOVE button must not also ghost a floor.
+              onPointerDown={(event) => {
+                if ((event.target as HTMLElement).closest("button")) return;
+                setPeeked(above(index));
+              }}
             >
               {item.floor.status === "dead" ? (
                 <DeadFloor floor={item.floor} />
