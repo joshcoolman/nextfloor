@@ -26,8 +26,9 @@ bleeding off every side with no black band, border or empty margin anywhere.
 
 STYLE (immutable):
 - Detailed pixel art. Crisp pixels, limited palette, consistent pixel scale.
-- Any sliver of sky or ground visible past the building is PURE BLACK (#000000),
-  flat and opaque. No sky gradient, no clouds, no horizon, no white, no grey.
+- TRUE ALPHA TRANSPARENCY outside the building tile. Do not draw a checkerboard
+  transparency pattern, a white, black, coloured, gradient or scenic background,
+  or shadows falling onto an imaginary ground.
 - Dark ambient light. Every bright area comes from a practical light source in
   the scene: lamps, screens, neon, windows, fire. Saturated colour appears only
   in those light sources, their spill, and signage.

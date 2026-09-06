@@ -8,6 +8,8 @@ export interface GeneratedTile {
 export interface Reference {
   bytes: Buffer;
   mimeType: string;
+  width?: number;
+  height?: number;
   /**
    * Publicly fetchable URL for the same tile, when the app knows its own public
    * address. Providers that take a URL should prefer it: a 4K PNG as a base64

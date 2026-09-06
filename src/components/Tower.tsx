@@ -127,11 +127,18 @@ export default function Tower() {
             transform: `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${transform.scale})`,
           }}
         >
-          {placed.map((item) => (
+          {placed.map((item, index) => (
             <div
               key={item.floor.id}
               className={`${styles.tile} ${item.floor.id === newest ? styles.settle : ""}`}
-              style={{ top: item.top, width: frame.width, height: frame.height }}
+              style={{
+                top: item.top,
+                width: frame.width,
+                height: frame.height,
+                // Higher floors paint over lower ones. Tiles are drawn top-first,
+                // so without this the basement would win and cover the tower.
+                zIndex: placed.length - index,
+              }}
             >
               {item.floor.status === "dead" ? (
                 <DeadFloor floor={item.floor} />

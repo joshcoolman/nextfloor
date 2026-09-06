@@ -47,14 +47,22 @@ export async function listFloors(): Promise<Floor[]> {
 }
 
 /** The tile every later generation is conditioned on. */
-export async function referenceTile(): Promise<{ id: string; key: string; mime: string } | null> {
+export async function referenceTile(): Promise<
+  { id: string; key: string; mime: string; width: number | null; height: number | null } | null
+> {
   await ensureSchema();
   const { rows } = await pool().query<Row>(
     `select * from floors where is_reference and image_key is not null limit 1`,
   );
   const row = rows[0];
   return row?.image_key
-    ? { id: row.id, key: row.image_key, mime: row.image_mime ?? "image/png" }
+    ? {
+        id: row.id,
+        key: row.image_key,
+        mime: row.image_mime ?? "image/png",
+        width: row.image_width,
+        height: row.image_height,
+      }
     : null;
 }
 
@@ -114,6 +122,19 @@ export async function insertFloor(floor: NewFloor): Promise<Floor> {
     ],
   );
   return toFloor(rows[0]);
+}
+
+/**
+ * Removes every floor of a kind, reference included, and returns their image
+ * keys. Used when a static tile replaces whatever is in that slot.
+ */
+export async function clearKind(kind: FloorKind): Promise<string[]> {
+  await ensureSchema();
+  const { rows } = await pool().query<{ image_key: string | null }>(
+    `delete from floors where kind = $1 returning image_key`,
+    [kind],
+  );
+  return rows.map((row) => row.image_key).filter((key): key is string => Boolean(key));
 }
 
 export interface DeleteResult {

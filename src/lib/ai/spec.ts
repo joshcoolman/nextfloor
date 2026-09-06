@@ -20,9 +20,8 @@ Rules:
 - Aim for density. Somebody should be able to zoom in and keep finding things.
 - Give the floor small stories: an argument, a mishap, someone hiding, a cat
   somewhere it should not be.
-- Signage is shapes, logos and colour, never readable words. Image models write
-  garbled text and it breaks the illusion.
-- Do not reproduce copyrighted characters. Evoke an era or genre instead.
+- Reference real brands, games and characters freely where they fit the theme.
+  This is a personal art project, not a commercial product.
 - displayName is at most 28 characters, title case, no quotes.
 `.trim();
 

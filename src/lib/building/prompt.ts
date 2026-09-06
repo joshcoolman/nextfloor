@@ -7,21 +7,34 @@ import type { FloorKind, FloorSpec } from "@/lib/ai/types";
  * generation, and an LLM cannot promise that. The text itself lives in
  * `src/lib/prompts/`.
  */
+/**
+ * Renders the spec as a THEME DETAILS block: an intro, one flat bulleted list
+ * and a tone line. A single list reads better to the
+ * image model than eight labelled fields, which it tends to treat as headings
+ * to draw rather than content to depict.
+ */
 function composeContent(spec: FloorSpec): string {
+  const bullets = [
+    ...spec.rooms.map((room) => `${room.name}: ${room.description}`),
+    ...spec.props,
+    ...spec.characters,
+    ...spec.signage,
+    ...spec.storytelling,
+    ...spec.easterEggs,
+    spec.architecture,
+    spec.lighting,
+    spec.palette,
+  ];
+
   return [
-    spec.concept,
+    `THEME DETAILS:`,
     ``,
-    `Rooms, left to right across the cutaway:`,
-    ...spec.rooms.map((room, i) => `${i + 1}. ${room.name} -- ${room.description}`),
+    `Transform the interior into ${spec.concept}`,
     ``,
-    `Architecture and finishes: ${spec.architecture}`,
-    `Lighting: ${spec.lighting}`,
-    `Colour: ${spec.palette}`,
-    `Props: ${spec.props.join("; ")}`,
-    `People: ${spec.characters.join("; ")}`,
-    `Signage and graphics (shapes and logos, no readable words): ${spec.signage.join("; ")}`,
-    `Small stories happening in the scene: ${spec.storytelling.join("; ")}`,
-    `Hidden details to reward zooming in: ${spec.easterEggs.join("; ")}`,
+    `Include:`,
+    ...bullets.map((line) => `- ${line}`),
+    ``,
+    `The floor should feel busy, lived-in, and packed with things to discover.`,
   ].join("\n");
 }
 

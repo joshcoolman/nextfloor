@@ -7,7 +7,7 @@ import type { GeneratedTile, Reference } from "./providers/types";
 
 export type { GeneratedTile } from "./providers/types";
 
-/** Allowed drift from 21:9 before a tile is rejected and regenerated. */
+/** Allowed drift before a tile is rejected and regenerated. */
 const ASPECT_TOLERANCE = 0.02;
 
 /**
@@ -30,12 +30,18 @@ export async function generateFloorImage(
     throw new ContractError("Generated tile was not a readable PNG or JPEG.");
   }
 
+  // With a reference in play the target is that tile's exact frame, which is
+  // stricter than a ratio: a floor half the reference's size would still pass
+  // an aspect check and then render at the wrong scale in the tower.
   const [w, h] = TILE.aspectRatio.split(":").map(Number);
-  const target = w / h;
+  const target = reference?.width && reference.height
+    ? reference.width / reference.height
+    : w / h;
   const actual = size.width / size.height;
   if (Math.abs(actual - target) / target > ASPECT_TOLERANCE) {
     throw new ContractError(
-      `Generated tile is ${size.width}x${size.height}, which is not ${TILE.aspectRatio}.`,
+      `Generated tile is ${size.width}x${size.height}, which does not match the ` +
+        `reference frame (ratio ${target.toFixed(3)}).`,
     );
   }
 

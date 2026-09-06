@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { composeEditPrompt, composeSeedPrompt } from "@/lib/building/prompt";
 import {
   BASEMENT_THEME,
@@ -14,12 +14,14 @@ import type { Reference } from "@/lib/ai/providers/types";
 import {
   BASEMENT_ORDINAL,
   ROOF_ORDINAL,
+  clearKind,
   insertFloor,
   listFloors,
   nextFloorOrdinal,
   referenceTile,
 } from "@/lib/db/floors";
-import { getImage, putImage } from "@/lib/storage";
+import { deleteImage, getImage, putImage } from "@/lib/storage";
+import { restoreAlpha } from "@/lib/image/alpha";
 import { assertConsistentTiles, readStartingTile } from "@/lib/building/importTiles";
 
 export interface GenerateOptions {
@@ -105,9 +107,13 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor> {
     });
   }
 
-  const extension = tile.mimeType === "image/png" ? "png" : "jpg";
+  // Models return the transparency checkerboard as opaque grey often enough
+  // that this has to be a pipeline stage rather than a manual clean-up.
+  const bytes = await restoreAlpha(tile.bytes);
+  const mimeType = bytes === tile.bytes ? tile.mimeType : "image/png";
+  const extension = mimeType === "image/png" ? "png" : "jpg";
   const key = `floors/${randomUUID()}.${extension}`;
-  await putImage(key, tile.bytes, tile.mimeType);
+  await putImage(key, bytes, mimeType);
 
   return insertFloor({
     ordinal,
@@ -117,7 +123,7 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor> {
     displayName: spec.displayName,
     spec,
     meta: { attempts, width: tile.width, height: tile.height },
-    image: { key, mime: tile.mimeType, width: tile.width, height: tile.height },
+    image: { key, mime: mimeType, width: tile.width, height: tile.height },
     isReference: options.isReference ?? false,
   });
 }
@@ -142,22 +148,38 @@ async function loadReference(): Promise<Reference | null> {
   return {
     bytes: stored.bytes,
     mimeType: stored.mime,
+    width: ref.width ?? undefined,
+    height: ref.height ?? undefined,
     url: base ? `${base}/api/floors/${ref.id}/image` : null,
   };
 }
 
 /**
- * Imports a hand-made tile from `public/building/` instead of generating one.
- * Returns null when no such file exists.
+ * Imports a hand-drawn tile from `public/`, replacing whatever occupies that
+ * slot. The artwork on disk is authoritative: a generated floor left over from
+ * an earlier run, or an older version of the same file, is discarded rather
+ * than kept. The file's hash is stored so replacing the art on disk propagates
+ * on the next page load without a manual wipe.
  */
 async function importFloor(
   kind: FloorKind,
   theme: string,
   displayName: string,
   isReference: boolean,
+  existing: Floor[],
 ): Promise<Floor | null> {
   const tile = readStartingTile(kind);
   if (!tile) return null;
+
+  const sha = createHash("sha256").update(tile.bytes).digest("hex").slice(0, 16);
+  const current = existing.find((floor) => floor.kind === kind);
+  if (current && current.meta?.sha === sha) return null;
+
+  if (current) {
+    for (const key of await clearKind(kind)) {
+      await deleteImage(key);
+    }
+  }
 
   const extension = tile.mimeType === "image/png" ? "png" : "jpg";
   const key = `floors/${randomUUID()}.${extension}`;
@@ -170,7 +192,7 @@ async function importFloor(
     themePrompt: theme,
     displayName,
     spec: null,
-    meta: { source: "public/building", width: tile.width, height: tile.height },
+    meta: { source: "public", sha, width: tile.width, height: tile.height },
     image: { key, mime: tile.mimeType, width: tile.width, height: tile.height },
     isReference,
   });
@@ -190,17 +212,14 @@ export async function ensureBuilding(): Promise<Floor[]> {
   const existing = await listFloors();
   const created: Floor[] = [];
 
-  if (!existing.some((floor) => floor.kind === "floor")) {
-    const floor = await importFloor("floor", BASE_FLOOR_THEME, "80s Video Games", true);
-    if (floor) created.push(floor);
-  }
-  if (!existing.some((floor) => floor.kind === "basement")) {
-    const basement = await importFloor("basement", BASEMENT_THEME, "Sub-Level", false);
-    if (basement) created.push(basement);
-  }
-  if (!existing.some((floor) => floor.kind === "roof")) {
-    const roof = await importFloor("roof", ROOF_THEME, "Rooftop", false);
-    if (roof) created.push(roof);
-  }
+  const floor = await importFloor("floor", BASE_FLOOR_THEME, "80s Video Games", true, existing);
+  if (floor) created.push(floor);
+
+  const basement = await importFloor("basement", BASEMENT_THEME, "Sub-Level", false, existing);
+  if (basement) created.push(basement);
+
+  const roof = await importFloor("roof", ROOF_THEME, "Rooftop", false, existing);
+  if (roof) created.push(roof);
+
   return created;
 }
