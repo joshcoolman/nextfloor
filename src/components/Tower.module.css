@@ -74,6 +74,11 @@
   right: 16px;
   z-index: 100;
   width: clamp(280px, 25vw, 420px);
+  padding: 10px;
+  /* The controls sit over the artwork now, so they need their own ground. */
+  background: rgba(0, 0, 0, 0.78);
+  border: 1px solid var(--edge);
+  backdrop-filter: blur(8px);
 }
 
 .empty {
