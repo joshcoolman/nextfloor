@@ -5,7 +5,7 @@ import styles from "./Tower.module.css";
 import AddFloorControl from "./AddFloorControl";
 import DeadFloor from "./DeadFloor";
 import KeyPanel from "./KeyPanel";
-import ZoomControl from "./ZoomControl";
+import ZoomControl, { ZOOM_STEPS } from "./ZoomControl";
 import DeleteFloors from "./DeleteFloors";
 import { useKeys } from "@/hooks/useKeys";
 import { frameOf, placeFloors } from "@/lib/building/layout";
@@ -83,6 +83,55 @@ export default function Tower() {
     },
     [headers],
   );
+
+  /**
+   * Zoom by keyboard and modifier-wheel rather than by clicking buttons.
+   *
+   * The wheel listener must be non-passive: ctrl/cmd + wheel is how browsers
+   * report pinch zoom, and only preventDefault stops the whole page zooming
+   * instead of the building. Cmd/ctrl + shift + arrows is the keyboard route --
+   * plain + and - belong to the browser and cannot be taken.
+   */
+  useEffect(() => {
+    const step = (direction: 1 | -1) => {
+      setZoom((current) => {
+        const index = ZOOM_STEPS.indexOf(current);
+        const from = index === -1 ? ZOOM_STEPS.indexOf(1) : index;
+        const next = ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, from + direction))];
+        try {
+          localStorage.setItem("nextfloor.zoom", String(next));
+        } catch {
+          // Non-fatal.
+        }
+        return next;
+      });
+    };
+
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      if ((event.target as HTMLElement)?.closest("[data-controls]")) return;
+      event.preventDefault();
+      step(event.deltaY < 0 ? 1 : -1);
+    };
+
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || !event.shiftKey) return;
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        step(1);
+      } else if (event.key === "ArrowDown") {
+        event.preventDefault();
+        step(-1);
+      }
+    };
+
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
 
   /** Poll while anything is under construction, and stop when nothing is. */
   useEffect(() => {
@@ -194,7 +243,7 @@ export default function Tower() {
         </p>
       )}
 
-      <footer className={styles.footer}>
+      <footer className={styles.footer} data-controls>
         <AddFloorControl
           busy={busy}
           pending={pendingCount}

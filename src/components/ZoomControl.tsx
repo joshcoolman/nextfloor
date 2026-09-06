@@ -10,25 +10,14 @@ interface Props {
 }
 
 export default function ZoomControl({ zoom, onChange }: Props) {
-  const index = ZOOM_STEPS.indexOf(zoom);
-  const at = index === -1 ? ZOOM_STEPS.indexOf(1) : index;
-
   return (
     <div className={styles.control}>
       <span className={styles.label}>
         ZOOM <span className={styles.value}>{Math.round(zoom * 100)}%</span>
       </span>
-      <button onClick={() => onChange(ZOOM_STEPS[at - 1])} disabled={at === 0}>
-        −
-      </button>
+      <span className={styles.hint}>⌘ scroll · ⌘⇧↑↓</span>
       <button onClick={() => onChange(1)} disabled={zoom === 1}>
-        100%
-      </button>
-      <button
-        onClick={() => onChange(ZOOM_STEPS[at + 1])}
-        disabled={at === ZOOM_STEPS.length - 1}
-      >
-        +
+        RESET
       </button>
     </div>
   );

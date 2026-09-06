@@ -19,8 +19,15 @@
   color: var(--ink-dim);
 }
 
+.hint {
+  padding-right: 10px;
+  font-size: 10px;
+  color: #3f3f3f;
+  white-space: nowrap;
+}
+
 .control button {
-  padding: 9px 14px;
+  padding: 9px 12px;
   font-size: 12px;
   color: var(--ink-dim);
   border-left: 1px solid var(--edge);
