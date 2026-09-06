@@ -8,7 +8,9 @@ export function pool(): Pool {
   }
   globalForDb.pool ??= new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL.includes("localhost") ? undefined : { rejectUnauthorized: false },
+    // Off by default: Railway's private network speaks plain TCP, and offering
+    // SSL to a server that does not support it fails the connection outright.
+    ssl: process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : undefined,
   });
   return globalForDb.pool;
 }
