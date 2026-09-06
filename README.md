@@ -2,6 +2,10 @@
 
 eye candy mostly. useless mainly.
 
+**[See it running →](https://nextfloor-production.up.railway.app)**
+
+Bring your own Anthropic and fal keys to add a floor; looking costs nothing.
+
 A generated isometric pixel-art building that grows one floor at a time. Type a
 theme, and an AI pipeline draws a floor in that theme and stacks it on the tower.
 
