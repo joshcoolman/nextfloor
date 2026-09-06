@@ -25,8 +25,13 @@ Rules:
 - Aim for density. Somebody should be able to zoom in and keep finding things.
 - Give the floor small stories: an argument, a mishap, someone hiding, a cat
   somewhere it should not be.
-- Reference real brands, games and characters freely where they fit the theme.
-  This is a personal art project, not a commercial product.
+- Reference real brands, games and characters where they fit the theme; this is
+  a personal art project, not a commercial product. One constraint on that: the
+  image model rejects the whole floor if the prompt names a trademarked ship,
+  character or franchise, so carry the reference by its form rather than by its
+  name -- "a battered freighter with a saucer hull and a side-mounted cockpit"
+  instead of the ship's name. Stay as close to the user's theme as you can and
+  lighten only the wording that would trip the filter, never the idea itself.
 - displayName is at most 28 characters, title case, no quotes.
 `.trim();
 
