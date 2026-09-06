@@ -11,7 +11,7 @@ import { frameOf, placeFloors } from "@/lib/building/layout";
 import type { Effort, Floor } from "@/lib/ai/types";
 
 /** Faint rather than gone: the lifted floor still reads as a floor. */
-const PEEK_OPACITY = 0.08;
+const PEEK_OPACITY = 0.2;
 
 export default function Tower() {
   const [floors, setFloors] = useState<Floor[]>([]);
