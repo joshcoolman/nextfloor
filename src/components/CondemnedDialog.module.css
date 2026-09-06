@@ -56,6 +56,13 @@
   color: var(--ink-faint);
 }
 
+.note {
+  margin: 12px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
+
 .actions {
   display: flex;
   border-top: 1px solid var(--edge);

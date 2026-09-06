@@ -145,17 +145,17 @@ export async function clearStaticSlot(kind: FloorKind): Promise<string[]> {
 }
 
 /**
- * The lowest floor number nothing visible occupies, falling back to one above
- * the top of the building when the sequence is contiguous.
+ * The lowest floor number no built floor occupies, falling back to one above the
+ * top of the building when the sequence is contiguous.
  *
  * Floor numbers are painted into the artwork and cannot be changed afterwards,
  * so a deleted floor leaves a permanent hole. Filling the lowest gap first
  * means the building stops accumulating them.
  *
- * A slot counts as free when no floor holds it, and also when the floor holding
- * it is condemned and nobody kept it: such a row is invisible by design and is
- * only waiting to be decided on. A condemned floor somebody kept is a real
- * floor and holds its number like any other.
+ * A condemned floor never holds its slot, kept or not. Keeping one is curiosity
+ * -- someone wanted to see what a failed floor looks like -- not a decision to
+ * live with it, so the next floor built takes that number back. `meta.kept`
+ * governs only whether the wreck is visible while it waits.
  *
  * The series runs to max + 1, so the fallback needs no special case: that value
  * is never occupied.
@@ -170,7 +170,7 @@ const FREE_ORDINAL = `
      select 1 from floors f
       where f.kind = 'floor'
         and f.ordinal = n
-        and (f.status <> 'dead' or f.meta->>'kept' = 'true')
+        and f.status <> 'dead'
    )
 `;
 
@@ -191,12 +191,11 @@ export async function reserveFloor(theme: string): Promise<Floor> {
   try {
     await client.query("begin");
     await client.query("select pg_advisory_xact_lock(hashtext('nextfloor:ordinal'))");
-    // Clear the wreck first if this slot holds one. An unkept condemned floor
-    // is invisible and undecided; building over it is the decision.
+    // Clear the wreck first if this slot holds one. A condemned floor is
+    // always temporary: it stands until something is built over it.
     await client.query(
       `delete from floors
-        where kind = 'floor' and status = 'dead' and coalesce(meta->>'kept', '') <> 'true'
-          and ordinal = (${FREE_ORDINAL})`,
+        where kind = 'floor' and status = 'dead' and ordinal = (${FREE_ORDINAL})`,
     );
     const { rows } = await client.query<Row>(
       `insert into floors (id, ordinal, kind, status, theme_prompt, display_name, meta)
@@ -316,12 +315,12 @@ export async function deleteFloor(id: string, onlyDead = false): Promise<DeleteR
 }
 
 /**
- * Marks a condemned floor as one the visitor chose to keep.
+ * Marks a condemned floor as one the visitor wanted to look at.
  *
- * A dead floor is hidden by default: a refused or failed build is not part of
- * the building unless someone decides it is. Keeping it is the only way a
- * condemned storey appears in the tower, which is what makes finding one in
- * the wild mean something.
+ * A dead floor is hidden by default, and keeping it only makes it visible --
+ * it is a peek at what a failed floor looks like, not a decision to live with
+ * one. The next floor built takes the slot back, so a condemned storey is
+ * always something you catch rather than something you own.
  */
 export async function keepFloor(id: string): Promise<Floor | null> {
   await ensureSchema();
