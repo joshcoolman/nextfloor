@@ -1,0 +1,47 @@
+:root {
+  --ground: #000000;
+  --ground-lift: #0d0d0d;
+  --edge: #232323;
+  --ink: #ededed;
+  --ink-dim: #8a8a8a;
+  --ink-faint: #565656;
+  --signal: #ffffff;
+  --danger: #d96a60;
+  /* Reserved for the controls. The building lays out beside it, never under it. */
+  --rail: clamp(260px, 20vw, 360px);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Inter, Arial,
+    sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: #ffffff;
+  color: #000000;
+}

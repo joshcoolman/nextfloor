@@ -1,0 +1,152 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  /* "safe" matters: when the building is wider than the space left beside the
+     rail, plain centring overflows equally in both directions and the left edge
+     becomes unreachable by scrolling. safe centring falls back to start. */
+  align-items: safe center;
+  /* The rail is reserved rather than overlaid, so the building centres in the
+     space that is left and nothing ever sits under the controls. */
+  padding: 0 var(--rail) 64px 0;
+  background: var(--ground);
+}
+
+/* The stack is the page. Tiles sit at their natural size and the window
+   scrolls, rather than a viewport rig scaling them to fit. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Its own stacking context: tile z-indexes climb with the tower, and without
+     this a tall enough building would eventually outrank the controls. */
+  position: relative;
+  z-index: 0;
+}
+
+.tile {
+  position: relative;
+  margin: 0;
+  line-height: 0;
+}
+
+.tile img {
+  display: block;
+  /* Pixel art must not be smoothed. */
+  image-rendering: pixelated;
+}
+
+.settle {
+  animation: settle 620ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes settle {
+  from {
+    transform: translateY(-70px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.remove {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid var(--edge);
+  padding: 4px 8px;
+  opacity: 0;
+  transition: opacity 130ms ease, color 130ms ease;
+}
+
+.tile:hover .remove {
+  opacity: 1;
+}
+
+.remove:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* Pinned, because the building grows without limit and the controls should not
+   drift off the bottom of a hundred-storey page. */
+.footer {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+  width: calc(var(--rail) - 32px);
+  padding: 10px;
+  /* The controls sit over the artwork now, so they need their own ground. */
+  background: rgba(0, 0, 0, 0.78);
+  border: 1px solid var(--edge);
+  backdrop-filter: blur(8px);
+}
+
+.empty {
+  padding: 120px 24px;
+  color: var(--ink-faint);
+  text-align: center;
+  line-height: 1.7;
+}
+
+/* The floor under construction: a real tile in the stack, so the building
+   visibly grows a storey before the artwork exists. */
+.construction {
+  position: relative;
+}
+
+.construction img {
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
+.scan {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  /* Masked by the tile itself, so the tint follows the building's silhouette
+     instead of filling its bounding box. */
+  -webkit-mask-image: url("/construction-floor.png");
+  mask-image: url("/construction-floor.png");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(255, 200, 90, 0.16) 45%,
+    rgba(255, 200, 90, 0.28) 50%,
+    rgba(255, 200, 90, 0.16) 55%,
+    transparent 100%
+  );
+  background-size: 100% 44%;
+  background-repeat: no-repeat;
+  animation: sweep 2.8s linear infinite;
+  mix-blend-mode: screen;
+}
+
+@keyframes breathe {
+  0%, 100% { opacity: 0.82; }
+  50% { opacity: 1; }
+}
+
+@keyframes sweep {
+  from { background-position: 0 -44%; }
+  to { background-position: 0 144%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .construction img,
+  .scan {
+    animation: none;
+  }
+}

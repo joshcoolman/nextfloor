@@ -1,0 +1,80 @@
+.dead {
+  position: absolute;
+  inset: 0;
+  background: #07080d;
+  overflow: hidden;
+  border-top: 6px solid #1c1e2b;
+  border-bottom: 22px solid #23262f;
+}
+
+/* Scan static, so a dead floor still reads as a lit volume rather than a hole. */
+.dead::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.035) 0px,
+    rgba(255, 255, 255, 0.035) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  animation: drift 9s linear infinite;
+}
+
+.dead::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 30%, rgba(255, 179, 71, 0.16), transparent 62%);
+  animation: flicker 4.3s steps(1, end) infinite;
+}
+
+.tape {
+  position: absolute;
+  left: -6%;
+  right: -6%;
+  top: 42%;
+  height: 9%;
+  transform: rotate(-1.6deg);
+  background: repeating-linear-gradient(
+    115deg,
+    #c9a227 0 34px,
+    #14151d 34px 68px
+  );
+  opacity: 0.85;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+}
+
+.reason {
+  position: absolute;
+  inset: auto 8% 14% 8%;
+  color: #ff9d94;
+  font-size: clamp(11px, 1.1vw, 15px);
+  line-height: 1.5;
+}
+
+.reason strong {
+  display: block;
+  color: var(--signal);
+  letter-spacing: 0.12em;
+  margin-bottom: 6px;
+}
+
+@keyframes drift {
+  from { transform: translateY(0); }
+  to { transform: translateY(24px); }
+}
+
+@keyframes flicker {
+  0%, 41%, 44%, 68%, 71%, 100% { opacity: 0.9; }
+  42%, 69% { opacity: 0.12; }
+  43%, 70% { opacity: 0.55; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dead::before,
+  .dead::after {
+    animation: none;
+  }
+}
