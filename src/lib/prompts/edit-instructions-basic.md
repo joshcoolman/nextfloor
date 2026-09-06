@@ -1,9 +1,10 @@
-# Floor Edit Instructions (basic)
+# Floor Edit Instructions
 
-An experiment, not a replacement. `edit-instructions.md` is the working prompt
-and is not to be edited to match this one.
+The prompt in use. `edit-instructions.md` is the longer one it replaced, kept
+verbatim because every tile in the building up to this point was drawn against
+it; `EDIT_PROMPT=full` restores it.
 
-The hypothesis: most of the working prompt argues with the reference image
+The reasoning: most of the working prompt argues with the reference image
 rather than adding to it. Three separate sections tell the model to match the
 reference tile it already has in hand, and a PURPOSE section explains HTML
 layering to something that does not lay out HTML. This file states each
@@ -24,7 +25,8 @@ What is NOT tested here: the THEME DETAILS block, which is the larger half of
 the prompt and is built by `composeContent()` in TypeScript, not by this file.
 Changing both at once would make the result unreadable.
 
-Set `EDIT_PROMPT=basic` to use this file. Anything else uses the working prompt.
+Set `EDIT_PROMPT=full` to fall back to the longer prompt. Anything else uses
+this one.
 
 Placeholders: `{{theme}}`, `{{number}}` and `{{content}}`.
 

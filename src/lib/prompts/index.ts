@@ -61,14 +61,17 @@ export function renderSeedPrompt({ kind, content, note }: SeedVars): string {
 }
 
 /**
- * Which edit prompt is in play. The working prompt is the default and stays
- * that way; `EDIT_PROMPT=basic` swaps in the shorter experiment so the two can
- * be compared on the same reference without editing either.
+ * Which edit prompt is in play.
+ *
+ * The short one is the default: the long prompt spent most of its 494 words
+ * restating what the attached reference tile already shows. `EDIT_PROMPT=full`
+ * restores it -- it is kept verbatim rather than deleted, because it is what
+ * every tile in the building up to this point was drawn against.
  */
-export const EDIT_PROMPT_NAME = process.env.EDIT_PROMPT === "basic" ? "basic" : "default";
+export const EDIT_PROMPT_NAME = process.env.EDIT_PROMPT === "full" ? "full" : "basic";
 
 const EDIT_FILE =
-  EDIT_PROMPT_NAME === "basic" ? "edit-instructions-basic.md" : "edit-instructions.md";
+  EDIT_PROMPT_NAME === "full" ? "edit-instructions.md" : "edit-instructions-basic.md";
 
 /**
  * Every later tile. The reference image carries the contract, so the prompt's
