@@ -1,35 +1,21 @@
 import sharp from "sharp";
 
 /**
- * Turns whatever background a model returned into real transparency.
+ * Restores real transparency to a tile whose background is opaque.
  *
- * Alpha is not a colour, so a diffusion model cannot draw it. Asked for a
- * transparent background it draws the only picture of transparency that exists:
- * a checkerboard. So the prompt asks for a flat key colour instead -- something
- * it can actually paint -- and the transparency is made here.
- *
- * Three cases have to work, because the model obliges inconsistently:
- *   1. A flat key-coloured surround. Keyed exactly.
- *   2. A neutral white/grey checkerboard. Keyed by matching the border colours.
- *   3. Real alpha, speckled with opaque leftovers from a drawn checkerboard.
- *
- * Case 3 is why the fill traverses transparent pixels rather than stopping at
- * them: the leftovers are islands inside an already-transparent surround, and a
- * fill that halts at alpha would never reach them.
+ * Image generators routinely return the transparency checkerboard as actual
+ * grey squares, or a flat background, even when asked for alpha. Those pixels
+ * then render as a rectangle behind the floor instead of showing the tower
+ * behind it. Keying works by flood fill inward from the image border, so
+ * matching colours inside the artwork are never touched.
  */
 
-/** The key colour the prompt asks for. Nothing in the artwork's palette is near it. */
-export const KEY_COLOUR = { r: 255, g: 0, b: 255 } as const;
-/** How far a pixel may sit from the key colour and still be background. */
-const KEY_DISTANCE = 90;
-/** How far from a sampled neutral background colour, when no key is present. */
+/** How far a pixel may differ from a background colour and still be background. */
 const TOLERANCE = 14;
 /** Max channel spread for a pixel to count as neutral grey. */
 const NEUTRAL = 10;
-/** Fraction of opaque border pixels that must be key-coloured to enter key mode. */
-const KEY_BORDER_SHARE = 0.2;
-/** Alpha at or below which a pixel counts as already transparent. */
-const CLEAR = 16;
+/** Below this, the tile already has usable transparency and is left alone. */
+const ALREADY_TRANSPARENT = 0.05;
 
 export async function restoreAlpha(input: Buffer): Promise<Buffer> {
   const image = sharp(input).ensureAlpha();
@@ -39,190 +25,64 @@ export async function restoreAlpha(input: Buffer): Promise<Buffer> {
   if (!width || !height) return input;
 
   const raw = await image.raw().toBuffer();
-  const at = (x: number, y: number) => (y * width + x) * 4;
 
-  const keyDistance = (i: number) => {
-    const dr = raw[i] - KEY_COLOUR.r;
-    const dg = raw[i + 1] - KEY_COLOUR.g;
-    const db = raw[i + 2] - KEY_COLOUR.b;
-    return Math.sqrt(dr * dr + dg * dg + db * db);
+  let transparent = 0;
+  for (let i = 3; i < raw.length; i += 4) {
+    if (raw[i] < 16) transparent += 1;
+  }
+  if (transparent / (width * height) > ALREADY_TRANSPARENT) return input;
+
+  const corner = [raw[0], raw[1], raw[2]];
+  let other: number[] | null = null;
+  for (let x = 1; x < Math.min(width, 200) && !other; x += 1) {
+    const i = x * 4;
+    if (Math.abs(raw[i] - corner[0]) > TOLERANCE) other = [raw[i], raw[i + 1], raw[i + 2]];
+  }
+  const second = other ?? corner;
+
+  // Resampling leaves blended pixels along every checker boundary. Matching only
+  // the two exact colours leaves those in place and they dam the flood fill, so
+  // anything neutral within the background's brightness range counts too.
+  const lo = Math.min(corner[0], second[0]) - TOLERANCE;
+  const hi = Math.max(corner[0], second[0]) + TOLERANCE;
+
+  const isBackground = (i: number) => {
+    const r = raw[i];
+    const g = raw[i + 1];
+    const b = raw[i + 2];
+    if (Math.max(r, g, b) - Math.min(r, g, b) > NEUTRAL) return false;
+    const luma = (r + g + b) / 3;
+    return luma >= lo && luma <= hi;
   };
-
-  // Decide from the border whether this is a keyed tile or a neutral one.
-  let borderOpaque = 0;
-  let borderKeyed = 0;
-  const sampleBorder = (x: number, y: number) => {
-    const i = at(x, y);
-    if (raw[i + 3] <= CLEAR) return;
-    borderOpaque += 1;
-    if (keyDistance(i) <= KEY_DISTANCE) borderKeyed += 1;
-  };
-  for (let x = 0; x < width; x += 1) {
-    sampleBorder(x, 0);
-    sampleBorder(x, height - 1);
-  }
-  for (let y = 0; y < height; y += 1) {
-    sampleBorder(0, y);
-    sampleBorder(width - 1, y);
-  }
-
-  const keyed = borderOpaque > 0 && borderKeyed / borderOpaque >= KEY_BORDER_SHARE;
-
-  let isBackground: (i: number) => boolean;
-  if (keyed) {
-    isBackground = (i) => keyDistance(i) <= KEY_DISTANCE;
-  } else {
-    // Neutral tones sampled from OPAQUE border pixels. Sampling the corner
-    // blindly reads the RGB of an already-transparent pixel, which is arbitrary.
-    let lo = Infinity;
-    let hi = -Infinity;
-    const sampleTone = (x: number, y: number) => {
-      const i = at(x, y);
-      if (raw[i + 3] <= CLEAR) return;
-      const r = raw[i];
-      const g = raw[i + 1];
-      const b = raw[i + 2];
-      if (Math.max(r, g, b) - Math.min(r, g, b) > NEUTRAL) return;
-      const luma = (r + g + b) / 3;
-      lo = Math.min(lo, luma);
-      hi = Math.max(hi, luma);
-    };
-    for (let x = 0; x < width; x += 1) {
-      sampleTone(x, 0);
-      sampleTone(x, height - 1);
-    }
-    for (let y = 0; y < height; y += 1) {
-      sampleTone(0, y);
-      sampleTone(width - 1, y);
-    }
-    if (lo === Infinity) {
-      isBackground = () => false;
-    } else {
-      const low = lo - TOLERANCE;
-      const high = hi + TOLERANCE;
-      isBackground = (i) => {
-        const r = raw[i];
-        const g = raw[i + 1];
-        const b = raw[i + 2];
-        if (Math.max(r, g, b) - Math.min(r, g, b) > NEUTRAL) return false;
-        const luma = (r + g + b) / 3;
-        return luma >= low && luma <= high;
-      };
-    }
-  }
 
   const seen = new Uint8Array(width * height);
-  const stack: number[] = [];
-  for (let x = 0; x < width; x += 1) {
-    stack.push(x, 0, x, height - 1);
-  }
-  for (let y = 0; y < height; y += 1) {
-    stack.push(0, y, width - 1, y);
-  }
+  const stack: Array<[number, number]> = [];
+  for (let x = 0; x < width; x += 1) stack.push([x, 0], [x, height - 1]);
+  for (let y = 0; y < height; y += 1) stack.push([0, y], [width - 1, y]);
 
-  let cleared = 0;
   while (stack.length) {
-    const y = stack.pop()!;
-    const x = stack.pop()!;
+    const [x, y] = stack.pop()!;
     if (x < 0 || y < 0 || x >= width || y >= height) continue;
     const p = y * width + x;
     if (seen[p]) continue;
     const i = p * 4;
-
-    const alreadyClear = raw[i + 3] <= CLEAR;
-    const clearable = !alreadyClear && isBackground(i);
-    // Traverse through existing transparency so opaque islands inside an
-    // already-keyed surround are still reachable.
-    if (!alreadyClear && !clearable) continue;
-
+    if (!isBackground(i)) continue;
     seen[p] = 1;
-    if (clearable) {
-      raw[i + 3] = 0;
-      cleared += 1;
-    }
-    stack.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1, x + 1, y + 1, x - 1, y - 1, x + 1, y - 1, x - 1, y + 1);
+    raw[i + 3] = 0;
+    stack.push(
+      [x + 1, y],
+      [x - 1, y],
+      [x, y + 1],
+      [x, y - 1],
+      [x + 1, y + 1],
+      [x - 1, y - 1],
+      [x + 1, y - 1],
+      [x - 1, y + 1],
+    );
   }
 
-  // Whatever the background was, a drawn checkerboard leaves opaque islands
-  // stranded in the void. Colour cannot separate them from the building's own
-  // grey concrete, but size and connectivity can: the artwork is one large mass
-  // and the leftovers are specks.
-  cleared += removeSpeckle(raw, width, height);
+  defringe(raw, width, height);
 
-  if (!cleared) return input;
-
-  defringe(raw, width, height, keyed ? [KEY_COLOUR.r, KEY_COLOUR.g, KEY_COLOUR.b] : null);
-
-  return sharp(raw, { raw: { width, height, channels: 4 } })
-    .png()
-    .toBuffer();
-}
-
-/** An opaque island smaller than this, adrift in transparency, is not artwork. */
-const MAX_SPECK = 600;
-
-/**
- * Clears small opaque components that are not part of the building.
- *
- * Deliberately independent of colour: the leftover checkerboard squares are the
- * same light grey as the concrete, so any colour rule that caught them would
- * also eat the slab edges. Connectivity separates them cleanly -- the artwork is
- * a single large component, the leftovers are hundreds of tiny ones.
- */
-function removeSpeckle(raw: Buffer, width: number, height: number): number {
-  const label = new Int32Array(width * height).fill(-1);
-  const sizes: number[] = [];
-  const members: number[][] = [];
-
-  for (let start = 0; start < width * height; start += 1) {
-    if (label[start] !== -1 || raw[start * 4 + 3] <= CLEAR) continue;
-    const id = sizes.length;
-    const pixels: number[] = [];
-    const queue = [start];
-    label[start] = id;
-    while (queue.length) {
-      const p = queue.pop()!;
-      pixels.push(p);
-      const x = p % width;
-      const y = (p - x) / width;
-      for (let dy = -1; dy <= 1; dy += 1) {
-        for (let dx = -1; dx <= 1; dx += 1) {
-          const nx = x + dx;
-          const ny = y + dy;
-          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-          const n = ny * width + nx;
-          if (label[n] !== -1 || raw[n * 4 + 3] <= CLEAR) continue;
-          label[n] = id;
-          queue.push(n);
-        }
-      }
-    }
-    sizes.push(pixels.length);
-    members.push(pixels);
-  }
-
-  const largest = sizes.reduce((best, size, i) => (size > sizes[best] ? i : best), 0);
-
-  let cleared = 0;
-  for (let id = 0; id < sizes.length; id += 1) {
-    if (id === largest || sizes[id] > MAX_SPECK) continue;
-    for (const p of members[id]) {
-      raw[p * 4 + 3] = 0;
-      cleared += 1;
-    }
-  }
-  return cleared;
-}
-
-export async function defringeImage(input: Buffer): Promise<Buffer> {
-  const image = sharp(input).ensureAlpha();
-  const metadata = await image.metadata();
-  const width = metadata.width ?? 0;
-  const height = metadata.height ?? 0;
-  if (!width || !height) return input;
-
-  const raw = await image.raw().toBuffer();
-  defringe(raw, width, height, null);
   return sharp(raw, { raw: { width, height, channels: 4 } })
     .png()
     .toBuffer();
@@ -234,19 +94,30 @@ const FRINGE_DISTANCE = 140;
 /**
  * Un-blends the one-pixel boundary between art and keyed-out background.
  *
- * An anti-aliased edge pixel is a blend of artwork and whatever it was drawn
- * over, so keeping it whole leaves a rim of that background around the tile.
- * Each boundary pixel is treated as `P = a*F + (1-a)*B` and solved for both.
+ * Keying is binary: a pixel is either cleared or kept. But an anti-aliased edge
+ * pixel is a blend of the artwork and whatever background it was drawn over,
+ * and keeping it whole leaves a rim of that background colour around every
+ * tile -- white speckle against a dark building.
  *
- * With a key colour B is known exactly, which makes this arithmetic rather than
- * an estimate; without one it is the mean of the pixel's cleared neighbours.
+ * Each boundary pixel is treated as `P = a*F + (1-a)*B`, where B is the mean of
+ * its cleared neighbours. Estimating `a` from how far P sits from B recovers
+ * both the coverage and the underlying colour F.
  */
-function defringe(
-  raw: Buffer,
-  width: number,
-  height: number,
-  key: [number, number, number] | null,
-): void {
+export async function defringeImage(input: Buffer): Promise<Buffer> {
+  const image = sharp(input).ensureAlpha();
+  const metadata = await image.metadata();
+  const width = metadata.width ?? 0;
+  const height = metadata.height ?? 0;
+  if (!width || !height) return input;
+
+  const raw = await image.raw().toBuffer();
+  defringe(raw, width, height);
+  return sharp(raw, { raw: { width, height, channels: 4 } })
+    .png()
+    .toBuffer();
+}
+
+function defringe(raw: Buffer, width: number, height: number): void {
   const original = Buffer.from(raw);
   const at = (x: number, y: number) => (y * width + x) * 4;
 
@@ -266,15 +137,9 @@ function defringe(
           if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
           const n = at(nx, ny);
           if (raw[n + 3] !== 0) continue;
-          if (key) {
-            br += key[0];
-            bg += key[1];
-            bb += key[2];
-          } else {
-            br += original[n];
-            bg += original[n + 1];
-            bb += original[n + 2];
-          }
+          br += original[n];
+          bg += original[n + 1];
+          bb += original[n + 2];
           count += 1;
         }
       }
@@ -296,14 +161,10 @@ function defringe(
         continue;
       }
 
-      raw[i] = clamp((original[i] - (1 - alpha) * br) / alpha);
-      raw[i + 1] = clamp((original[i + 1] - (1 - alpha) * bg) / alpha);
-      raw[i + 2] = clamp((original[i + 2] - (1 - alpha) * bb) / alpha);
+      raw[i] = Math.max(0, Math.min(255, (original[i] - (1 - alpha) * br) / alpha));
+      raw[i + 1] = Math.max(0, Math.min(255, (original[i + 1] - (1 - alpha) * bg) / alpha));
+      raw[i + 2] = Math.max(0, Math.min(255, (original[i + 2] - (1 - alpha) * bb) / alpha));
       raw[i + 3] = Math.round(alpha * 255);
     }
   }
-}
-
-function clamp(value: number): number {
-  return Math.max(0, Math.min(255, Math.round(value)));
 }

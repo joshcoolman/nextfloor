@@ -72,16 +72,15 @@ furniture, characters, lighting, activities, signage, and environmental details.
 
 {{content}}
 
-BACKGROUND -- CRITICAL:
-Fill every part of the image outside the building with flat, uniform, pure
-magenta, hex #FF00FF. Solid and even, corner to corner, with no texture,
-pattern, gradient, shading or detail in it. The magenta is a matte that gets
-removed afterwards, so nothing of the scene may extend into it: no shadows, no
-glow, no haze, no spill of light. Keep magenta out of the building itself.
+TRANSPARENCY -- CRITICAL:
+Output PNG with TRUE ALPHA TRANSPARENCY. Everything outside the building tile
+must be fully transparent. Do NOT draw a checkerboard transparency pattern. Do
+NOT draw a white, black, colored, gradient, or scenic background. Do NOT simulate
+transparency. No shadows extending onto an imaginary background.
 
 STACKING:
 This is a modular building component, not a complete illustration. Preserve clean
-flat magenta space surrounding the building. The top/rear structural boundary and
+transparent space surrounding the building. The top/rear structural boundary and
 bottom/front structural boundary must remain clean and predictable so adjacent
 floor PNGs can overlap slightly when positioned in HTML.
 

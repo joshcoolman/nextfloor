@@ -16,8 +16,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import pg from "pg";
-import sharp from "sharp";
-import { defringeImage, restoreAlpha } from "../src/lib/image/alpha.ts";
+import { defringeImage } from "../src/lib/image/alpha.ts";
 import { analyzeTone, matchTone } from "../src/lib/image/tone.ts";
 
 // Plain node does not read .env.local the way Next does, so load it here rather
@@ -61,10 +60,7 @@ if (!rows.length) {
   console.log("No generated tiles to clean.");
 } else {
   for (const row of rows) {
-    // restoreAlpha first: it keys any background the model drew and clears the
-    // opaque islands a checkerboard leaves behind. It no-ops on a clean tile.
-    let cleaned = await restoreAlpha(row.bytes);
-    if (cleaned === row.bytes) cleaned = await defringeImage(row.bytes);
+    let cleaned = await defringeImage(row.bytes);
     if (target) cleaned = await matchTone(cleaned, target);
     const delta = cleaned.length - row.bytes.length;
     if (dry) {
@@ -75,23 +71,6 @@ if (!rows.length) {
       cleaned,
       row.image_key,
     ]);
-
-    // Read back and decode. A tile that reaches storage corrupt renders as a
-    // broken image forever and there is no original left to recover from, so
-    // the write is verified rather than assumed.
-    const { rows: check } = await pool.query(`select bytes from floor_images where key = $1`, [
-      row.image_key,
-    ]);
-    try {
-      await sharp(Buffer.from(check[0].bytes)).ensureAlpha().raw().toBuffer();
-    } catch (error) {
-      console.error(`${row.display_name}: WROTE CORRUPT BYTES, restoring original`);
-      await pool.query(`update floor_images set bytes = $1 where key = $2`, [
-        row.bytes,
-        row.image_key,
-      ]);
-      continue;
-    }
     console.log(`${row.display_name}: cleaned`);
   }
 }

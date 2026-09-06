@@ -154,8 +154,7 @@ async function loadReference(): Promise<Reference | null> {
     mimeType: stored.mime,
     width: ref.width ?? undefined,
     height: ref.height ?? undefined,
-    // Matted onto the key colour: see the note in the image route.
-    url: base ? `${base}/api/floors/${ref.id}/image?matte=key` : null,
+    url: base ? `${base}/api/floors/${ref.id}/image` : null,
   };
 }
 
