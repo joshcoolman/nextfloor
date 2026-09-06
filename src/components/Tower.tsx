@@ -11,7 +11,7 @@ import { frameOf, placeFloors } from "@/lib/building/layout";
 import type { Effort, Floor } from "@/lib/ai/types";
 
 /** Faint rather than gone: the lifted floor still reads as a floor. */
-const PEEK_OPACITY = 0.2;
+const PEEK_OPACITY = 0.4;
 
 export default function Tower() {
   const [floors, setFloors] = useState<Floor[]>([]);
@@ -284,13 +284,27 @@ export default function Tower() {
             zIndex: placed.length - index,
           } as const;
 
+          /*
+            A lifted floor drops behind the whole tower rather than only fading.
+            Ghosted but still on top, it goes on swallowing clicks aimed at the
+            floor it is covering -- so putting it back meant hunting for the
+            strip of the storey below that it did not overlap. Behind everything,
+            the floor you uncovered is what you click, and clicking it restores
+            its neighbour. It stays visible through the gap, so the tower still
+            reads as continuous instead of gaining a hole.
+          */
+          const tileStyle =
+            item.floor.id === peeked
+              ? { ...style, opacity: PEEK_OPACITY, zIndex: 0 }
+              : style;
+
           if (item.floor.status === "pending") {
             return (
               <figure
                 key={item.floor.id}
                 id={item.floor.id}
                 className={`${styles.tile} ${styles.construction} ${styles.settle}`}
-                style={{ ...style, opacity: item.floor.id === peeked ? PEEK_OPACITY : undefined }}
+                style={tileStyle}
                 title={item.floor.themePrompt}
                 onClick={() => peek(index)}
               >
@@ -311,7 +325,7 @@ export default function Tower() {
               key={item.floor.id}
               id={item.floor.id}
               className={`${styles.tile} ${item.floor.id === newest ? styles.settle : ""}`}
-              style={{ ...style, opacity: item.floor.id === peeked ? PEEK_OPACITY : undefined }}
+              style={tileStyle}
               // A click on the REMOVE button must not also lift a floor.
               onClick={(event) => {
                 if ((event.target as HTMLElement).closest("button")) return;
