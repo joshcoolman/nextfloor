@@ -145,18 +145,54 @@ function publicBase(): string | null {
   return null;
 }
 
+/**
+ * Whether a reference URL actually serves the tile, cached for the life of the
+ * process.
+ *
+ * Renaming the Railway domain left PUBLIC_BASE_URL pointing at a dead host, and
+ * every generation quietly handed the image model 101 bytes of "Application not
+ * found" in place of the reference. The model does not report that as a missing
+ * image -- it either fails with a generic invalid_request or, worse, draws a
+ * floor with nothing to match. Both look like content problems from the outside
+ * and neither is.
+ */
+const reachable = new Map<string, boolean>();
+
+async function serves(url: string): Promise<boolean> {
+  const known = reachable.get(url);
+  if (known !== undefined) return known;
+  let ok = false;
+  try {
+    const response = await fetch(url, {
+      method: "HEAD",
+      signal: AbortSignal.timeout(10_000),
+    });
+    ok = response.ok && (response.headers.get("content-type") ?? "").startsWith("image/");
+  } catch {
+    ok = false;
+  }
+  if (!ok) {
+    console.warn(`[nextfloor] reference URL does not serve the tile, sending bytes: ${url}`);
+  }
+  reachable.set(url, ok);
+  return ok;
+}
+
 async function loadReference(): Promise<Reference | null> {
   const ref = await referenceTile();
   if (!ref) return null;
   const stored = await getImage(ref.key);
   if (!stored) return null;
   const base = publicBase();
+  const url = base ? `${base}/api/floors/${ref.id}/image` : null;
   return {
     bytes: stored.bytes,
     mimeType: stored.mime,
     width: ref.width ?? undefined,
     height: ref.height ?? undefined,
-    url: base ? `${base}/api/floors/${ref.id}/image` : null,
+    // The URL saves several megabytes of base64 per request, but only when it
+    // works. Unverified, it is a silent downgrade to no reference at all.
+    url: url && (await serves(url)) ? url : null,
   };
 }
 
