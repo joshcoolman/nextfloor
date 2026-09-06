@@ -18,8 +18,9 @@ interface Props {
  * What happens when a floor cannot be built.
  *
  * The failure is a decision rather than a notification: nothing is added to the
- * building unless the visitor says so. Keeping it is the only way a condemned
- * floor ever appears, so one in the wild means a person chose it.
+ * building unless the visitor says so. Keeping it is a look at the wreck rather
+ * than a commitment -- the next floor built takes the slot back -- so the copy
+ * says so plainly, or the offer reads as permanent.
  */
 export default function CondemnedDialog({ floor, busy, onRetry, onKeep }: Props) {
   useEffect(() => {
@@ -47,13 +48,14 @@ export default function CondemnedDialog({ floor, busy, onRetry, onKeep }: Props)
           </p>
           <p className={styles.theme}>&ldquo;{floor.themePrompt}&rdquo;</p>
           {floor.failureReason && <p className={styles.reason}>{floor.failureReason}</p>}
+          <p className={styles.note}>The next floor you build will take this number back.</p>
         </div>
         <div className={styles.actions}>
           <button className={styles.action} onClick={onRetry} disabled={busy}>
             TRY AGAIN
           </button>
           <button className={styles.action} data-keep onClick={onKeep} disabled={busy}>
-            LEAVE IT STANDING
+            LET ME SEE IT
           </button>
         </div>
       </div>
