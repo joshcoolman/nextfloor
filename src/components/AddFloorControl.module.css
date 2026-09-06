@@ -1,0 +1,112 @@
+.dock {
+  position: fixed;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 40;
+  width: min(560px, calc(100vw - 32px));
+}
+
+.form {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--edge);
+  background: rgba(11, 12, 20, 0.92);
+  backdrop-filter: blur(8px);
+}
+
+.form:focus-within {
+  border-color: var(--signal);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  padding: 13px 15px;
+}
+
+.input::placeholder {
+  color: var(--ink-faint);
+}
+
+.submit {
+  padding: 0 20px;
+  letter-spacing: 0.14em;
+  font-size: 11px;
+  color: var(--signal);
+  border-left: 1px solid var(--edge);
+  transition: background 140ms ease;
+}
+
+.submit:hover:not(:disabled) {
+  background: rgba(255, 179, 71, 0.12);
+}
+
+.submit:disabled {
+  color: var(--ink-faint);
+  cursor: not-allowed;
+}
+
+.building {
+  border: 1px solid var(--edge);
+  background: rgba(11, 12, 20, 0.94);
+  backdrop-filter: blur(8px);
+  padding: 13px 15px;
+}
+
+.stage {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--signal);
+}
+
+.elapsed {
+  color: var(--ink-faint);
+}
+
+.bar {
+  margin-top: 10px;
+  height: 2px;
+  background: var(--edge);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--signal);
+  transition: width 900ms linear;
+  box-shadow: 0 0 12px var(--signal);
+}
+
+.suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.suggestion {
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+  border: 1px solid var(--edge);
+  padding: 4px 8px;
+  background: rgba(11, 12, 20, 0.7);
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.suggestion:hover {
+  color: var(--signal);
+  border-color: var(--signal);
+}
+
+.error {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: var(--danger);
+}

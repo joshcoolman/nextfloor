@@ -1,0 +1,49 @@
+:root {
+  --ground: #0b0c14;
+  --ground-lift: #141622;
+  --edge: #262a3d;
+  --ink: #e8e9f2;
+  --ink-dim: #8b90a8;
+  --ink-faint: #575c74;
+  --signal: #ffb347;
+  --danger: #ff5f56;
+  --tile-width: 1440px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  overscroll-behavior: none;
+}
+
+body {
+  overflow: hidden;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+  color: inherit;
+}
+
+::selection {
+  background: var(--signal);
+  color: var(--ground);
+}

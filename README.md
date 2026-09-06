@@ -1,2 +1,62 @@
 # nextfloor
+
 eye candy mostly. useless mainly.
+
+A generated isometric pixel-art building that grows one floor at a time. Type a
+theme, and an AI pipeline draws a floor in that theme and stacks it on the tower.
+
+The experiment: can independently generated floor tiles hold a rigid enough
+visual contract that dozens of them still read as one continuous building?
+
+## How a floor is made
+
+1. **Theme Interpreter** (Claude) turns a theme into a structured floor spec.
+2. **Art Director** (`src/lib/building/prompt.ts`, plain code) composes that spec
+   with the immutable Building Style Guide into one image prompt.
+3. **Image generation** (Gemini) draws the tile, conditioned on the reference
+   tile so palette, lighting and line weight stay coherent.
+4. **Validation** checks the tile against the contract and retries once.
+5. A refusal or a second failure becomes a **dead floor** — a burnt-out storey
+   rendered in CSS, with the reason on it.
+
+`src/lib/building/styleGuide.ts` is the contract. Changing it invalidates the
+visual compatibility of every floor generated before the change.
+
+## Running it
+
+```bash
+pnpm install
+cp .env.example .env.local   # set DATABASE_URL
+pnpm dev
+```
+
+Keys are bring-your-own: visitors enter an Anthropic key and a Google key in the
+browser, and they are sent per request and never stored server-side. Set
+`ALLOW_SERVER_KEYS=true` to let the server fall back to its own keys — leave it
+off on a public deployment.
+
+Tiles are stored in Postgres by default. Set `S3_BUCKET` (and install
+`@aws-sdk/client-s3`) to use an S3-compatible bucket instead.
+
+## Controls
+
+Drag to pan, wheel to pan, cmd/ctrl-wheel to zoom at the cursor. The gutter on
+the left labels each floor and holds its delete button. Floor 1 is the reference
+tile and cannot be deleted.
+
+## Status
+
+**Last shipped**
+
+- V1: full generation pipeline, pan/zoom tower, BYOK, dead floors, persistence.
+
+**Up next**
+
+Open issue #1 is the spec. Deferred from V1: edge-band anchor validation (needs
+a pixel decoder), and generation as a job rather than one long request.
+
+**Focus**
+
+Deploy to Railway, attach Postgres, raise the building, and look at what the
+first three tiles actually produce. Everything after that depends on whether the
+tile contract holds — tune `src/lib/building/styleGuide.ts` against real output.

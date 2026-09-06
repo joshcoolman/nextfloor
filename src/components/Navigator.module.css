@@ -1,0 +1,71 @@
+.panel {
+  position: fixed;
+  right: 16px;
+  top: 62px;
+  z-index: 40;
+  width: 320px;
+  max-height: calc(100vh - 160px);
+  display: flex;
+  flex-direction: column;
+  background: rgba(11, 12, 20, 0.92);
+  border: 1px solid var(--edge);
+  backdrop-filter: blur(8px);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 12px;
+  letter-spacing: 0.14em;
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+
+.header:hover {
+  color: var(--ink);
+}
+
+.list {
+  overflow-y: auto;
+  border-top: 1px solid var(--edge);
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 12px;
+  text-align: left;
+  color: var(--ink-dim);
+  border-bottom: 1px solid rgba(38, 42, 61, 0.5);
+}
+
+.row:hover {
+  color: var(--ink);
+  background: rgba(255, 179, 71, 0.07);
+}
+
+.ordinal {
+  width: 34px;
+  flex: none;
+  color: var(--ink-faint);
+  text-align: right;
+}
+
+.row:hover .ordinal {
+  color: var(--signal);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.row[data-dead="true"] .name {
+  color: var(--danger);
+}
