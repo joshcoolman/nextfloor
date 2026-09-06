@@ -53,7 +53,6 @@
   color: #ff9d94;
   font-size: clamp(11px, 1.1vw, 15px);
   line-height: 1.5;
-  text-shadow: 0 0 12px rgba(255, 95, 86, 0.35);
 }
 
 .reason strong {

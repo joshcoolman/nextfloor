@@ -11,12 +11,12 @@
   display: flex;
   align-items: stretch;
   border: 1px solid var(--edge);
-  background: rgba(11, 12, 20, 0.92);
+  background: rgba(0, 0, 0, 0.92);
   backdrop-filter: blur(8px);
 }
 
 .form:focus-within {
-  border-color: var(--signal);
+  border-color: var(--ink-faint);
 }
 
 .input {
@@ -34,15 +34,15 @@
 
 .submit {
   padding: 0 20px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   font-size: 11px;
-  color: var(--signal);
+  color: var(--ink);
   border-left: 1px solid var(--edge);
   transition: background 140ms ease;
 }
 
 .submit:hover:not(:disabled) {
-  background: rgba(255, 179, 71, 0.12);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .submit:disabled {
@@ -52,7 +52,7 @@
 
 .building {
   border: 1px solid var(--edge);
-  background: rgba(11, 12, 20, 0.94);
+  background: rgba(0, 0, 0, 0.94);
   backdrop-filter: blur(8px);
   padding: 13px 15px;
 }
@@ -61,8 +61,8 @@
   display: flex;
   justify-content: space-between;
   font-size: 11px;
-  letter-spacing: 0.14em;
-  color: var(--signal);
+  letter-spacing: 0.08em;
+  color: var(--ink);
 }
 
 .elapsed {
@@ -78,9 +78,8 @@
 
 .fill {
   height: 100%;
-  background: var(--signal);
+  background: var(--ink);
   transition: width 900ms linear;
-  box-shadow: 0 0 12px var(--signal);
 }
 
 .suggestions {
@@ -96,13 +95,13 @@
   color: var(--ink-faint);
   border: 1px solid var(--edge);
   padding: 4px 8px;
-  background: rgba(11, 12, 20, 0.7);
+  background: rgba(0, 0, 0, 0.7);
   transition: color 120ms ease, border-color 120ms ease;
 }
 
 .suggestion:hover {
-  color: var(--signal);
-  border-color: var(--signal);
+  color: var(--ink);
+  border-color: var(--ink-faint);
 }
 
 .error {

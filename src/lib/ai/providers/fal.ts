@@ -6,16 +6,24 @@ import { REFERENCE_INSTRUCTION, type ImageProvider, type Reference } from "./typ
 const BASE = "https://fal.run";
 
 /**
- * Two models, because the two jobs are different. The seed tile has nothing to
+ * Nano Banana, not FLUX. FLUX is photoreal-leaning and reads a long structural
+ * prompt as a brief for an architectural render -- it produced a clean, empty,
+ * white-background CAD cutaway and ignored the pixel-art instruction entirely.
+ * The Gemini-class models follow long structured prompts and draw pixel art.
+ *
+ * Two endpoints, because the two jobs differ. The seed tile has nothing to
  * match, so it is text to image. Every later tile is an edit of the reference
- * floor -- which is a stronger guarantee than reference conditioning: the model
- * is asked to keep the shell and replace only the interior.
+ * floor, which is a stronger guarantee than conditioning: the model is asked to
+ * keep the shell and replace only the interior.
  */
-const SEED_MODEL = "fal-ai/flux-pro/v1.1-ultra";
-const EDIT_MODEL = "fal-ai/flux-pro/kontext";
+const SEED_MODEL = "fal-ai/nano-banana-2";
+const EDIT_MODEL = "fal-ai/nano-banana-pro/edit";
 
 /** Most permissive. Refusals are meant to produce dead floors, not silent blocks. */
 const SAFETY_TOLERANCE = "6";
+
+/** Matches the tile contract: enough resolution to zoom into the detail. */
+const RESOLUTION = "4K";
 
 export const fal: ImageProvider = {
   name: "fal",
@@ -27,14 +35,16 @@ export const fal: ImageProvider = {
       prompt: reference ? `${prompt}\n\n${REFERENCE_INSTRUCTION}` : prompt,
       aspect_ratio: TILE.aspectRatio,
       output_format: "png",
+      resolution: RESOLUTION,
       num_images: 1,
       safety_tolerance: SAFETY_TOLERANCE,
     };
 
     if (reference) {
-      // fal accepts a data URI wherever it accepts an image URL, which keeps the
-      // reference tile off the public internet.
-      input.image_url = `data:${reference.mimeType};base64,${reference.bytes.toString("base64")}`;
+      input.image_urls = [
+        reference.url ??
+          `data:${reference.mimeType};base64,${reference.bytes.toString("base64")}`,
+      ];
     }
 
     const response = await fetch(`${BASE}/${model}`, {

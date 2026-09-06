@@ -7,7 +7,7 @@
   max-height: calc(100vh - 160px);
   display: flex;
   flex-direction: column;
-  background: rgba(11, 12, 20, 0.92);
+  background: rgba(0, 0, 0, 0.92);
   border: 1px solid var(--edge);
   backdrop-filter: blur(8px);
 }
@@ -18,7 +18,7 @@
   justify-content: space-between;
   width: 100%;
   padding: 10px 12px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   font-size: 11px;
   color: var(--ink-dim);
 }
@@ -44,7 +44,7 @@
 
 .row:hover {
   color: var(--ink);
-  background: rgba(255, 179, 71, 0.07);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .ordinal {
@@ -55,7 +55,7 @@
 }
 
 .row:hover .ordinal {
-  color: var(--signal);
+  color: var(--ink);
 }
 
 .name {

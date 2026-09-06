@@ -10,6 +10,7 @@ import { generateFloorSpec } from "@/lib/ai/spec";
 import { ContractError, RefusalError } from "@/lib/ai/errors";
 import type { Keys } from "@/lib/ai/keys";
 import type { Floor, FloorKind } from "@/lib/ai/types";
+import type { Reference } from "@/lib/ai/providers/types";
 import {
   BASEMENT_ORDINAL,
   ROOF_ORDINAL,
@@ -120,11 +121,28 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor> {
   });
 }
 
-async function loadReference(): Promise<{ bytes: Buffer; mimeType: string } | null> {
+/**
+ * The public base URL lets providers fetch the reference tile themselves rather
+ * than receive several megabytes of base64 in the request body. Railway sets
+ * RAILWAY_PUBLIC_DOMAIN; set PUBLIC_BASE_URL to point a local run at it too.
+ */
+function publicBase(): string | null {
+  if (process.env.PUBLIC_BASE_URL) return process.env.PUBLIC_BASE_URL.replace(/\/$/, "");
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+  return null;
+}
+
+async function loadReference(): Promise<Reference | null> {
   const ref = await referenceTile();
   if (!ref) return null;
   const stored = await getImage(ref.key);
-  return stored ? { bytes: stored.bytes, mimeType: stored.mime } : null;
+  if (!stored) return null;
+  const base = publicBase();
+  return {
+    bytes: stored.bytes,
+    mimeType: stored.mime,
+    url: base ? `${base}/api/floors/${ref.id}/image` : null,
+  };
 }
 
 /**

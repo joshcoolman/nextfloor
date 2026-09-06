@@ -36,7 +36,7 @@ export default function Tower() {
     contentHeight: height,
   });
 
-  const ready = serverKeys || Boolean(keys.anthropic && (keys.fal || keys.google));
+  const ready = serverKeys || Boolean(keys.anthropic && keys.fal);
 
   useEffect(() => {
     const measure = () => setViewportHeight(window.innerHeight);

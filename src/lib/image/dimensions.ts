@@ -1,3 +1,10 @@
+/** Providers misreport content types, so the bytes are the only source of truth. */
+export function detectMime(buf: Buffer): "image/png" | "image/jpeg" | null {
+  if (buf.length > 8 && buf.readUInt32BE(0) === 0x89504e47) return "image/png";
+  if (buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8) return "image/jpeg";
+  return null;
+}
+
 /** Minimal PNG/JPEG header reader. Enough to enforce the tile contract without a native decoder. */
 export function readDimensions(buf: Buffer): { width: number; height: number } | null {
   if (buf.length > 24 && buf.readUInt32BE(0) === 0x89504e47) {

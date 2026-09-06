@@ -13,12 +13,11 @@ visual contract that dozens of them still read as one continuous building?
 1. **Theme Interpreter** (Claude) turns a theme into a structured floor spec.
 2. **Art Director** (`src/lib/building/prompt.ts`, plain code) composes that spec
    with the immutable Building Style Guide into one image prompt.
-3. **Image generation** draws the tile from that prompt plus the reference tile,
-   so palette, lighting and line weight stay coherent. Two providers sit behind
-   the seam in `src/lib/ai/providers/`: **fal** (preferred — emits PNG, and edits
-   the reference floor directly, which holds the shell better than conditioning)
-   and **Gemini** (JPEG only, so tiles are generated at 4K to hide ringing).
-   Whichever image key you supply picks the provider.
+3. **Image generation** (fal, Nano Banana) draws the tile from that prompt. Later
+   floors are generated as an *edit* of the reference tile, which holds the shell
+   far better than conditioning on it. FLUX was tried first and reads the
+   structural prompt as a brief for an architectural render — it returns clean,
+   empty, photoreal CAD cutaways.
 4. **Validation** checks the tile against the contract and retries once.
 5. A refusal or a second failure becomes a **dead floor** — a burnt-out storey
    rendered in CSS, with the reason on it.
@@ -34,8 +33,8 @@ cp .env.example .env.local   # set DATABASE_URL
 pnpm dev
 ```
 
-Keys are bring-your-own: visitors enter an Anthropic key and one image key —
-fal or Google — in the browser, and they are sent per request and never stored server-side. Set
+Keys are bring-your-own: visitors enter an Anthropic key and a fal key in the
+browser, and they are sent per request and never stored server-side. Set
 `ALLOW_SERVER_KEYS=true` to let the server fall back to its own keys — leave it
 off on a public deployment.
 

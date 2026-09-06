@@ -34,6 +34,10 @@ create table if not exists floors (
   created_at    timestamptz not null default now()
 );
 create index if not exists floors_ordinal_idx on floors (ordinal);
+-- Exactly one reference tile. Two concurrent seeds would otherwise each create
+-- a lobby, which is how the building ended up with two ground floors.
+create unique index if not exists floors_one_reference on floors ((is_reference))
+  where is_reference;
 
 create table if not exists floor_images (
   key   text primary key,

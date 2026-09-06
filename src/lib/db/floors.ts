@@ -45,13 +45,15 @@ export async function listFloors(): Promise<Floor[]> {
 }
 
 /** The tile every later generation is conditioned on. */
-export async function referenceTile(): Promise<{ key: string; mime: string } | null> {
+export async function referenceTile(): Promise<{ id: string; key: string; mime: string } | null> {
   await ensureSchema();
   const { rows } = await pool().query<Row>(
     `select * from floors where is_reference and image_key is not null limit 1`,
   );
   const row = rows[0];
-  return row?.image_key ? { key: row.image_key, mime: row.image_mime ?? "image/png" } : null;
+  return row?.image_key
+    ? { id: row.id, key: row.image_key, mime: row.image_mime ?? "image/png" }
+    : null;
 }
 
 export async function nextFloorOrdinal(): Promise<number> {

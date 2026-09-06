@@ -4,7 +4,7 @@
   right: 16px;
   z-index: 60;
   width: 320px;
-  background: rgba(11, 12, 20, 0.92);
+  background: rgba(0, 0, 0, 0.92);
   border: 1px solid var(--edge);
   backdrop-filter: blur(8px);
 }
@@ -15,7 +15,7 @@
   justify-content: space-between;
   width: 100%;
   padding: 10px 12px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   font-size: 11px;
   color: var(--ink-dim);
 }
@@ -33,7 +33,7 @@
 }
 
 .dot[data-ready="true"] {
-  background: var(--signal);
+  background: #5fd68a;
 }
 
 .body {
@@ -62,7 +62,7 @@
 }
 
 .field input:focus {
-  border-color: var(--signal);
+  border-color: var(--ink-faint);
 }
 
 .note {

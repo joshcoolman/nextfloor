@@ -1,7 +1,5 @@
 export interface Keys {
   anthropic: string;
-  /** Google and fal are alternatives; exactly one image key is needed. */
-  google: string;
   fal: string;
 }
 
@@ -14,12 +12,15 @@ export class MissingKeyError extends Error {
 
 const serverKeysAllowed = () => process.env.ALLOW_SERVER_KEYS === "true";
 
-function pick(request: Request, header: string, envName: string): string {
-  return (
-    request.headers.get(header)?.trim() ||
-    (serverKeysAllowed() ? process.env[envName] : undefined) ||
-    ""
-  );
+function pick(request: Request, header: string, ...envNames: string[]): string {
+  const fromHeader = request.headers.get(header)?.trim();
+  if (fromHeader) return fromHeader;
+  if (!serverKeysAllowed()) return "";
+  for (const name of envNames) {
+    const value = process.env[name];
+    if (value) return value;
+  }
+  return "";
 }
 
 /**
@@ -31,13 +32,13 @@ function pick(request: Request, header: string, envName: string): string {
 export function resolveKeys(request: Request): Keys {
   const keys: Keys = {
     anthropic: pick(request, "x-anthropic-key", "ANTHROPIC_API_KEY"),
-    google: pick(request, "x-google-key", "GOOGLE_API_KEY"),
-    fal: pick(request, "x-fal-key", "FAL_KEY"),
+    // FAL_KEY is fal's own convention; FAL_API_KEY is the name people reach for.
+    fal: pick(request, "x-fal-key", "FAL_KEY", "FAL_API_KEY"),
   };
 
   const missing: string[] = [];
   if (!keys.anthropic) missing.push("an Anthropic key");
-  if (!keys.google && !keys.fal) missing.push("an image key (fal or Google)");
+  if (!keys.fal) missing.push("a fal key");
   if (missing.length) throw new MissingKeyError(missing);
 
   return keys;
@@ -45,5 +46,7 @@ export function resolveKeys(request: Request): Keys {
 
 export function serverKeysAvailable(): boolean {
   if (!serverKeysAllowed()) return false;
-  return Boolean(process.env.ANTHROPIC_API_KEY && (process.env.FAL_KEY || process.env.GOOGLE_API_KEY));
+  return Boolean(
+    process.env.ANTHROPIC_API_KEY && (process.env.FAL_KEY || process.env.FAL_API_KEY),
+  );
 }

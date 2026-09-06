@@ -12,7 +12,7 @@ interface Props {
 
 export default function KeyPanel({ keys, onChange, serverKeys }: Props) {
   const [open, setOpen] = useState(false);
-  const ready = serverKeys || Boolean(keys.anthropic && (keys.fal || keys.google));
+  const ready = serverKeys || Boolean(keys.anthropic && keys.fal);
 
   return (
     <aside className={styles.panel} data-no-pan>
@@ -40,19 +40,9 @@ export default function KeyPanel({ keys, onChange, serverKeys }: Props) {
               onChange={(event) => onChange({ ...keys, fal: event.target.value })}
             />
           </label>
-          <label className={styles.field}>
-            <span>GOOGLE — draws the floor, if no fal key</span>
-            <input
-              type="password"
-              value={keys.google}
-              placeholder={serverKeys ? "using the host's key" : "AIza... or AQ..."}
-              onChange={(event) => onChange({ ...keys, google: event.target.value })}
-            />
-          </label>
           <p className={styles.note}>
-            One image key is enough. fal is preferred: it emits PNG, and pixel art
-            through JPEG loses the crisp edges. Kept in this browser only, sent with
-            each request, never stored on the server. Floors spend your own credit.
+            Kept in this browser only, sent with each request, never stored on the
+            server. Floors spend your own credit.
           </p>
         </div>
       )}
