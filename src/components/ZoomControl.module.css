@@ -1,27 +1,22 @@
+/* Pinned bottom right, away from the rail: it belongs to the view, not to the
+   floor-making controls. */
 .control {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 20;
   display: flex;
   align-items: stretch;
-  margin-top: 10px;
+  background: var(--ground);
   border: 1px solid var(--edge);
-}
-
-.label {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: var(--ink-faint);
 }
 
 /* A readout, not a field: clicking it resets rather than inviting typing. */
 .value {
-  padding: 9px 12px;
+  padding: 9px 14px;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   color: var(--ink-dim);
-  border-left: 1px solid var(--edge);
 }
 
 .value:hover {

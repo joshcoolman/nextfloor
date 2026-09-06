@@ -16,8 +16,7 @@ export default function ZoomControl({ zoom, onChange }: Props) {
   const at = index === -1 ? ZOOM_STEPS.indexOf(DEFAULT_ZOOM) : index;
 
   return (
-    <div className={styles.control}>
-      <span className={styles.label}>ZOOM</span>
+    <div className={styles.control} data-controls>
       <button
         className={styles.value}
         onClick={() => onChange(DEFAULT_ZOOM)}

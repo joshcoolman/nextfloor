@@ -257,12 +257,13 @@ export default function Tower() {
           error={error}
           onSubmit={addFloor}
         />
-        <ZoomControl zoom={zoom} onChange={changeZoom} />
         {(!serverKeys || forceKeys) && (
           <KeyPanel keys={keys} onChange={setKeys} serverKeys={serverKeys} />
         )}
         {local && <DeleteFloors floors={floors} onDelete={removeFloors} />}
       </footer>
+
+      <ZoomControl zoom={zoom} onChange={changeZoom} />
     </main>
   );
 }
