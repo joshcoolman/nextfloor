@@ -94,15 +94,22 @@ and fal keys.
 
 **Last shipped**
 
-- V1: full generation pipeline, pan/zoom tower, BYOK, dead floors, persistence.
+- Local-only floor deletion, gated on the Host header rather than hidden in the UI.
+- Generated tiles graded to the reference tile's tone; they came back ~20% brighter and ~20% flatter.
+- Edge de-fringing on keyed tiles, and `scripts/refringe.mjs` to re-clean stored ones.
+- The tower is a plain scrolling page with a reserved control rail and CSS zoom.
+- Static roof, reference floor and basement imported from `public/`; generated floors are edits of the reference.
+- fal (Nano Banana) is the only image provider; Google removed.
 
 **Up next**
 
-Open issue #1 is the spec. Deferred from V1: edge-band anchor validation (needs
-a pixel decoder), and generation as a job rather than one long request.
+Issue #1 is the spec. Open questions: floor numbers are baked into the artwork
+so deleting a middle floor leaves the ones above it mislabelled; the model
+occasionally draws a checkerboard patch inside the art that border flood fill
+cannot reach.
 
 **Focus**
 
-Deploy to Railway, attach Postgres, raise the building, and look at what the
-first three tiles actually produce. Everything after that depends on whether the
-tile contract holds — tune `src/lib/building/styleGuide.ts` against real output.
+Generate floors and watch what the shell does over ten or twenty of them. The
+whole experiment is whether the edit path holds the building together at depth,
+and nothing else matters until that is known.

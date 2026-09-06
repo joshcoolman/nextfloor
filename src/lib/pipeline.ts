@@ -14,7 +14,7 @@ import type { Reference } from "@/lib/ai/providers/types";
 import {
   BASEMENT_ORDINAL,
   ROOF_ORDINAL,
-  clearKind,
+  clearStaticSlot,
   insertFloor,
   listFloors,
   nextFloorOrdinal,
@@ -176,13 +176,15 @@ async function importFloor(
   if (!tile) return null;
 
   const sha = createHash("sha256").update(tile.bytes).digest("hex").slice(0, 16);
-  const current = existing.find((floor) => floor.kind === kind);
+  // Match the static row specifically. For `floor` that is the reference tile;
+  // the generated floors alongside it must survive an artwork change.
+  const current = existing.find(
+    (floor) => floor.kind === kind && (kind !== "floor" || floor.meta?.source === "public"),
+  );
   if (current && current.meta?.sha === sha) return null;
 
-  if (current) {
-    for (const key of await clearKind(kind)) {
-      await deleteImage(key);
-    }
+  for (const key of await clearStaticSlot(kind)) {
+    await deleteImage(key);
   }
 
   const extension = tile.mimeType === "image/png" ? "png" : "jpg";

@@ -125,13 +125,20 @@ export async function insertFloor(floor: NewFloor): Promise<Floor> {
 }
 
 /**
- * Removes every floor of a kind, reference included, and returns their image
- * keys. Used when a static tile replaces whatever is in that slot.
+ * Clears the slot a static tile occupies, returning the image keys removed.
+ *
+ * For the roof and basement that is every row of the kind, which is how a
+ * leftover generated roof gets displaced. For `floor` it is only the reference
+ * row: generated floors share that kind, and deleting by kind alone would wipe
+ * the whole tower the first time the reference artwork changed on disk.
  */
-export async function clearKind(kind: FloorKind): Promise<string[]> {
+export async function clearStaticSlot(kind: FloorKind): Promise<string[]> {
   await ensureSchema();
   const { rows } = await pool().query<{ image_key: string | null }>(
-    `delete from floors where kind = $1 returning image_key`,
+    `delete from floors
+      where kind = $1
+        and ($1 <> 'floor' or is_reference)
+      returning image_key`,
     [kind],
   );
   return rows.map((row) => row.image_key).filter((key): key is string => Boolean(key));
