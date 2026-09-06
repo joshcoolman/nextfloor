@@ -22,8 +22,26 @@ visual contract that dozens of them still read as one continuous building?
 5. A refusal or a second failure becomes a **dead floor** — a burnt-out storey
    rendered in CSS, with the reason on it.
 
-`src/lib/building/styleGuide.ts` is the contract. Changing it invalidates the
-visual compatibility of every floor generated before the change.
+The prompts live in `src/lib/prompts/` as markdown, not in code, because they are
+what gets tuned every session:
+
+- `iso-instructions.md` — the seed tile, which has nothing to match.
+- `edit-instructions.md` — every later floor, generated as an edit of the
+  reference tile. The reference carries the contract, so this prompt's job is to
+  forbid changing it.
+- `structure-{floor,roof,basement}.md` — the per-kind structural language.
+
+`GET /api/prompt?mode=seed|edit` renders exactly what would be sent, so the
+prompt can be read without spending a generation. `src/lib/building/styleGuide.ts`
+holds the tile geometry. Changing any of it invalidates the visual compatibility
+of every floor generated before the change.
+
+## Starting tiles
+
+Drop `floor.png`, `roof.png` and `basement.png` into `public/building/` and
+seeding imports them instead of generating. All three must be 21:9 and share one
+shell, since `floor.png` becomes the permanent reference every later floor is
+matched against. Drawing that tile on purpose beats rolling for it.
 
 ## Running it
 

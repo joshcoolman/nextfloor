@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { renderPrompt } from "@/lib/prompts";
+import { renderEditPrompt, renderSeedPrompt } from "@/lib/prompts";
 import type { FloorKind } from "@/lib/ai/types";
 
 export const runtime = "nodejs";
@@ -14,9 +14,11 @@ export async function GET(request: Request) {
   if (!["floor", "roof", "basement"].includes(kind)) {
     return NextResponse.json({ error: "Unknown floor kind." }, { status: 400 });
   }
-  const text = renderPrompt({
-    kind,
-    content: "<< the generated floor specification is inserted here >>",
-  });
+  const content = "<< the generated floor specification is inserted here >>";
+  const mode = new URL(request.url).searchParams.get("mode") ?? "seed";
+  const text =
+    mode === "edit"
+      ? renderEditPrompt({ theme: "<< the user's theme >>", content })
+      : renderSeedPrompt({ kind, content });
   return new Response(text, { headers: { "content-type": "text/plain; charset=utf-8" } });
 }

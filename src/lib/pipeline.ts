@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { composeImagePrompt, composeSeedPrompt } from "@/lib/building/prompt";
+import { composeEditPrompt, composeSeedPrompt } from "@/lib/building/prompt";
 import {
   BASEMENT_THEME,
   BASE_FLOOR_THEME,
@@ -20,6 +20,7 @@ import {
   referenceTile,
 } from "@/lib/db/floors";
 import { getImage, putImage } from "@/lib/storage";
+import { readStartingTile } from "@/lib/building/importTiles";
 
 export interface GenerateOptions {
   keys: Keys;
@@ -74,7 +75,7 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor> {
 
   const reference = await loadReference();
   const prompt = reference
-    ? composeImagePrompt(spec, kind)
+    ? composeEditPrompt(spec, theme)
     : composeSeedPrompt(spec, kind);
 
   let tile;
@@ -146,8 +147,40 @@ async function loadReference(): Promise<Reference | null> {
 }
 
 /**
- * The building always exists. On an empty database the lobby is generated
- * first and becomes the reference tile; the caps are then matched to it.
+ * Imports a hand-made tile from `public/building/` instead of generating one.
+ * Returns null when no such file exists.
+ */
+async function importFloor(
+  kind: FloorKind,
+  theme: string,
+  displayName: string,
+  isReference: boolean,
+): Promise<Floor | null> {
+  const tile = readStartingTile(kind);
+  if (!tile) return null;
+
+  const extension = tile.mimeType === "image/png" ? "png" : "jpg";
+  const key = `floors/${randomUUID()}.${extension}`;
+  await putImage(key, tile.bytes, tile.mimeType);
+
+  return insertFloor({
+    ordinal: kind === "roof" ? ROOF_ORDINAL : kind === "basement" ? BASEMENT_ORDINAL : 1,
+    kind,
+    status: "ready",
+    themePrompt: theme,
+    displayName,
+    spec: null,
+    meta: { source: "public/building", width: tile.width, height: tile.height },
+    image: { key, mime: tile.mimeType, width: tile.width, height: tile.height },
+    isReference,
+  });
+}
+
+/**
+ * The building always exists. Hand-made tiles in `public/building/` are used
+ * when present -- the reference tile decides how every later floor looks, so a
+ * drawn one beats a rolled one. Otherwise the first three floors are generated,
+ * lobby first, and the caps are matched to it.
  */
 export async function seedBuilding(keys: Keys): Promise<Floor[]> {
   const existing = await listFloors();
@@ -157,14 +190,21 @@ export async function seedBuilding(keys: Keys): Promise<Floor[]> {
   // dead there is nothing for later floors to match against, so try again.
   if (!(await referenceTile())) {
     created.push(
-      await generateFloor({ keys, theme: BASE_FLOOR_THEME, kind: "floor", isReference: true }),
+      (await importFloor("floor", BASE_FLOOR_THEME, "Ground Floor", true)) ??
+        (await generateFloor({ keys, theme: BASE_FLOOR_THEME, kind: "floor", isReference: true })),
     );
   }
   if (!existing.some((floor) => floor.kind === "basement")) {
-    created.push(await generateFloor({ keys, theme: BASEMENT_THEME, kind: "basement" }));
+    created.push(
+      (await importFloor("basement", BASEMENT_THEME, "Basement", false)) ??
+        (await generateFloor({ keys, theme: BASEMENT_THEME, kind: "basement" })),
+    );
   }
   if (!existing.some((floor) => floor.kind === "roof")) {
-    created.push(await generateFloor({ keys, theme: ROOF_THEME, kind: "roof" }));
+    created.push(
+      (await importFloor("roof", ROOF_THEME, "Roof", false)) ??
+        (await generateFloor({ keys, theme: ROOF_THEME, kind: "roof" })),
+    );
   }
   return created;
 }

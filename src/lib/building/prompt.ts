@@ -1,4 +1,4 @@
-import { renderPrompt } from "@/lib/prompts";
+import { renderEditPrompt, renderSeedPrompt } from "@/lib/prompts";
 import type { FloorKind, FloorSpec } from "@/lib/ai/types";
 
 /**
@@ -25,13 +25,14 @@ function composeContent(spec: FloorSpec): string {
   ].join("\n");
 }
 
-export function composeImagePrompt(spec: FloorSpec, kind: FloorKind): string {
-  return renderPrompt({ kind, content: composeContent(spec) });
+/** Used when a reference tile exists, which is every floor after the first. */
+export function composeEditPrompt(spec: FloorSpec, theme: string): string {
+  return renderEditPrompt({ theme, content: composeContent(spec) });
 }
 
 /** Used only for the very first tile, which has no reference image to match. */
 export function composeSeedPrompt(spec: FloorSpec, kind: FloorKind): string {
-  return renderPrompt({
+  return renderSeedPrompt({
     kind,
     content: composeContent(spec),
     note:

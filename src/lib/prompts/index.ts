@@ -40,14 +40,15 @@ const STRUCTURE_FILE: Record<FloorKind, string> = {
   basement: "structure-basement.md",
 };
 
-export interface PromptVars {
+export interface SeedVars {
   kind: FloorKind;
   content: string;
   /** Appended last. Used for the seed tile, which has no reference to match. */
   note?: string;
 }
 
-export function renderPrompt({ kind, content, note }: PromptVars): string {
+/** The first tile. Nothing to match, so the contract is stated from scratch. */
+export function renderSeedPrompt({ kind, content, note }: SeedVars): string {
   const shell = read("iso-instructions.md");
   const body = [
     section(shell, "LEAD"),
@@ -57,6 +58,16 @@ export function renderPrompt({ kind, content, note }: PromptVars): string {
   ];
   if (note) body.push(note);
   return body.join("\n\n");
+}
+
+/**
+ * Every later tile. The reference image carries the contract, so the prompt's
+ * job is to forbid changing it rather than to describe it from nothing.
+ */
+export function renderEditPrompt({ theme, content }: { theme: string; content: string }): string {
+  return section(read("edit-instructions.md"), "EDIT")
+    .replaceAll("{{theme}}", theme)
+    .replace("{{content}}", content);
 }
 
 /** Exposed so a debug script can render exactly what production would send. */

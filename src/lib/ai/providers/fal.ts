@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { TILE } from "@/lib/building/styleGuide";
 import { RefusalError } from "../errors";
-import { REFERENCE_INSTRUCTION, type ImageProvider, type Reference } from "./types";
+import type { ImageProvider, Reference } from "./types";
 
 const BASE = "https://fal.run";
 
@@ -16,8 +16,14 @@ const BASE = "https://fal.run";
  * floor, which is a stronger guarantee than conditioning: the model is asked to
  * keep the shell and replace only the interior.
  */
-const SEED_MODEL = "fal-ai/nano-banana-2";
-const EDIT_MODEL = "fal-ai/nano-banana-pro/edit";
+const SEED_MODEL = process.env.FAL_SEED_MODEL || "fal-ai/nano-banana-2";
+/**
+ * Nano Banana over FLUX 2 Pro Edit, decided by a head-to-head on the same
+ * reference: both preserved the shell, but FLUX 2 rendered the interior as
+ * smooth comic illustration while Nano Banana held the pixel-art style. Set
+ * FAL_EDIT_MODEL to fal-ai/flux-2-pro/edit to compare again.
+ */
+const EDIT_MODEL = process.env.FAL_EDIT_MODEL || "fal-ai/nano-banana-pro/edit";
 
 /** Most permissive. Refusals are meant to produce dead floors, not silent blocks. */
 const SAFETY_TOLERANCE = "6";
@@ -32,7 +38,8 @@ export const fal: ImageProvider = {
   async generate(apiKey: string, prompt: string, reference: Reference | null) {
     const model = reference ? EDIT_MODEL : SEED_MODEL;
     const input: Record<string, unknown> = {
-      prompt: reference ? `${prompt}\n\n${REFERENCE_INSTRUCTION}` : prompt,
+      // The edit prompt already carries the reference contract in full.
+      prompt,
       aspect_ratio: TILE.aspectRatio,
       output_format: "png",
       resolution: RESOLUTION,
