@@ -1,0 +1,88 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(3px);
+}
+
+.modal {
+  width: min(420px, 100%);
+  background: var(--ground);
+  border: 1px solid var(--edge);
+}
+
+/* The same hazard banding the tile carries, so the dialog reads as the notice
+   taped to the door rather than as an error. */
+.tape {
+  height: 10px;
+  background: repeating-linear-gradient(115deg, #c9a227 0 14px, #14151d 14px 28px);
+}
+
+.body {
+  padding: 20px 18px 18px;
+}
+
+.title {
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  color: var(--ink);
+  margin: 0 0 10px;
+}
+
+.lead {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--ink-dim);
+  margin: 0;
+}
+
+.theme {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.reason {
+  margin: 12px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--edge);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
+
+.actions {
+  display: flex;
+  border-top: 1px solid var(--edge);
+}
+
+.action {
+  flex: 1;
+  padding: 13px 10px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+  border-right: 1px solid var(--edge);
+}
+
+.action:last-child {
+  border-right: none;
+}
+
+.action:hover:not(:disabled) {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.action[data-keep] {
+  color: var(--ink-dim);
+}
+
+.action:disabled {
+  opacity: 0.5;
+}

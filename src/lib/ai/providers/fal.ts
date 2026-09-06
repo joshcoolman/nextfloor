@@ -25,7 +25,11 @@ const SEED_MODEL = process.env.FAL_SEED_MODEL || "fal-ai/nano-banana-2";
  */
 const EDIT_MODEL = process.env.FAL_EDIT_MODEL || "fal-ai/nano-banana-pro/edit";
 
-/** Most permissive. Refusals are meant to produce dead floors, not silent blocks. */
+/**
+ * Most permissive -- but only the FLUX family reads it. Nano Banana runs
+ * Google's own content checker and exposes no dial at all, which is why a
+ * trademarked ship name comes back 422 no matter what is set here.
+ */
 const SAFETY_TOLERANCE = "6";
 
 /** 2K on a 4:1 frame is the spec sheet's 2048 x 512. */
@@ -79,7 +83,9 @@ export const fal: ImageProvider = {
         raw.slice(0, 400).trim();
       const message = `Image model returned ${response.status}: ${detail || "no detail given"}`;
       console.error("[nextfloor] fal failed", response.status, raw.slice(0, 2000));
-      if (/safety|nsfw|policy|prohibited/i.test(message)) {
+      // Gemini's checker says "flagged by a content checker" and never uses the
+      // word safety, so a narrower pattern reported real refusals as outages.
+      if (/safety|nsfw|policy|prohibited|content checker|flagged|moderat/i.test(message)) {
         throw new RefusalError(message, "image_safety");
       }
       throw new Error(message);

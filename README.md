@@ -100,6 +100,9 @@ and fal keys.
 
 **Last shipped**
 
+- Condemned floors: a failed build is now a choice, not a fact. Nothing is added
+  to the tower unless the visitor picks "leave it standing"; the wreck is drawn
+  from `public/condemned-floor.png`.
 - One dialog with panes (add / floors / keys) behind a single round button; the control rail is gone.
 - Background queue: a floor claims its slot and returns immediately, generating in `after()`. A refresh loses nothing.
 - Checkerboard detection by orphan-pixel fraction, rejected and retried once, then a dead floor.
@@ -118,8 +121,6 @@ Known gaps, in order of how much they cost:
   canvas; the static tiles are 1774x887 filling ~94-97%. Floors therefore sit a
   few percent large with a different vertical offset and do not line up
   precisely. The fix is normalising each tile's bounding box to the reference's.
-- Dead floors render in CSS. Artwork for a burnt-out floor would drop into
-  `public/dead-floor.png` and replace it.
 - Floor numbers are baked into the artwork, so deleting a middle floor leaves
   the ones above it mislabelled.
 
