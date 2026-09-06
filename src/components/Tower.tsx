@@ -6,6 +6,7 @@ import AddFloorControl from "./AddFloorControl";
 import DeadFloor from "./DeadFloor";
 import KeyPanel from "./KeyPanel";
 import ZoomControl from "./ZoomControl";
+import DeleteFloors from "./DeleteFloors";
 import { useKeys } from "@/hooks/useKeys";
 import { frameOf, placeFloors } from "@/lib/building/layout";
 import type { Floor } from "@/lib/ai/types";
@@ -13,6 +14,7 @@ import type { Floor } from "@/lib/ai/types";
 export default function Tower() {
   const [floors, setFloors] = useState<Floor[]>([]);
   const [serverKeys, setServerKeys] = useState(false);
+  const [local, setLocal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newest, setNewest] = useState<string | null>(null);
@@ -69,6 +71,7 @@ export default function Tower() {
       .then((data) => {
         setFloors(data.floors);
         setServerKeys(data.serverKeys);
+        setLocal(Boolean(data.local));
       })
       .catch(() => setError("Could not reach the building. Is DATABASE_URL set?"));
   }, []);
@@ -96,14 +99,20 @@ export default function Tower() {
     [headers],
   );
 
-  const removeFloor = useCallback(async (id: string) => {
-    const response = await fetch(`/api/floors/${id}`, { method: "DELETE" });
-    if (!response.ok) {
+  const removeFloors = useCallback(async (ids: string[]) => {
+    const removed: string[] = [];
+    for (const id of ids) {
+      const response = await fetch(`/api/floors/${id}`, { method: "DELETE" });
+      if (response.ok) {
+        removed.push(id);
+        continue;
+      }
       const data = await response.json().catch(() => ({}));
       setError(data.error ?? "That floor could not be removed.");
-      return;
     }
-    setFloors((current) => current.filter((floor) => floor.id !== id));
+    if (removed.length) {
+      setFloors((current) => current.filter((floor) => !removed.includes(floor.id)));
+    }
   }, []);
 
   /** A new floor lands at the top of the tower; go and look at it. */
@@ -168,9 +177,14 @@ export default function Tower() {
                   draggable={false}
                 />
               )}
-              <button className={styles.remove} onClick={() => removeFloor(item.floor.id)}>
-                REMOVE
-              </button>
+              {local && (
+                <button
+                  className={styles.remove}
+                  onClick={() => removeFloors([item.floor.id])}
+                >
+                  REMOVE
+                </button>
+              )}
             </figure>
           );
         })}
@@ -186,6 +200,7 @@ export default function Tower() {
         <AddFloorControl busy={busy} disabled={!ready} error={error} onSubmit={addFloor} />
         <ZoomControl zoom={zoom} onChange={changeZoom} />
         <KeyPanel keys={keys} onChange={setKeys} serverKeys={serverKeys} />
+        {local && <DeleteFloors floors={floors} onDelete={removeFloors} />}
       </footer>
     </main>
   );

@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { MissingKeyError, resolveKeys, serverKeysAvailable } from "@/lib/ai/keys";
 import { listFloors } from "@/lib/db/floors";
+import { isLocalRequest } from "@/lib/local";
 import { ensureBuilding, generateFloor } from "@/lib/pipeline";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-export async function GET() {
+export async function GET(request: Request) {
   // The static building raises itself on first visit; no keys, no generation.
   try {
     await ensureBuilding();
@@ -17,6 +18,7 @@ export async function GET() {
   return NextResponse.json({
     floors: await listFloors(),
     serverKeys: serverKeysAvailable(),
+    local: isLocalRequest(request),
   });
 }
 
