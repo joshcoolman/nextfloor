@@ -3,8 +3,8 @@
 Sent with the reference tile for every generated floor. The reference is a locked
 template: the model changes the tenants, never the building.
 
-Placeholders: `{{theme}}` and `{{content}}`. `{{content}}` is the THEME DETAILS
-block produced by the Theme Interpreter.
+Placeholders: `{{theme}}`, `{{number}}` and `{{content}}`. `{{content}}` is the
+THEME DETAILS block produced by the Theme Interpreter.
 
 ---
 
@@ -62,6 +62,13 @@ place a sign containing the theme. Express the theme through architecture, props
 furniture, characters, lighting, activities, signage, and environmental details.
 
 {{content}}
+
+FLOOR NUMBER:
+The reference tile has a floor number painted on the exterior wall beside the
+elevator door. Paint the number {{number}} there instead, in the same position,
+same size, same font, same colour, same weathering. Change nothing else about
+that wall. The number must read clearly as {{number}} and must not appear
+anywhere else on the floor.
 
 TRANSPARENCY -- CRITICAL:
 Output PNG with TRUE ALPHA TRANSPARENCY. Everything outside the building tile

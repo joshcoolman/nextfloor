@@ -17,6 +17,8 @@ export default function Tower() {
   const [error, setError] = useState<string | null>(null);
   const [newest, setNewest] = useState<string | null>(null);
   const [zoom, setZoom] = useState(0.6);
+  /** ?constructing previews the construction tile without spending a generation. */
+  const [preview, setPreview] = useState(false);
 
   const { keys, setKeys, headers } = useKeys();
   const frame = useMemo(() => frameOf(floors), [floors]);
@@ -26,7 +28,24 @@ export default function Tower() {
   /** How much each tile rides up over the one below it. */
   const overlap = frame.height - frame.pitch;
 
+  /**
+   * While a floor generates, a construction tile occupies the slot it will
+   * land in, so the building visibly grows a storey rather than the page
+   * sitting still for a couple of minutes.
+   */
+  const items = useMemo(() => {
+    const list: Array<{ key: string; placed?: (typeof placed)[number] }> = placed.map((item) => ({
+      key: item.floor.id,
+      placed: item,
+    }));
+    if (!busy && !preview) return list;
+    const below = list.findIndex((item) => item.placed?.floor.kind !== "roof");
+    list.splice(below === -1 ? list.length : below, 0, { key: "under-construction" });
+    return list;
+  }, [busy, placed, preview]);
+
   useEffect(() => {
+    setPreview(new URLSearchParams(window.location.search).has("constructing"));
     try {
       const stored = Number(localStorage.getItem("nextfloor.zoom"));
       if (stored > 0) setZoom(stored);
@@ -101,36 +120,60 @@ export default function Tower() {
         would leave the layout box at full size and leave phantom scroll area.
       */}
       <div className={styles.stack} style={{ zoom }}>
-        {placed.map((item, index) => (
-          <figure
-            key={item.floor.id}
-            id={item.floor.id}
-            className={`${styles.tile} ${item.floor.id === newest ? styles.settle : ""}`}
-            style={{
-              width: frame.width,
-              height: frame.height,
-              marginTop: index === 0 ? 0 : -overlap,
-              // Higher floors paint over lower ones. Tiles are laid out
-              // top-first, so without this the basement would cover the tower.
-              zIndex: placed.length - index,
-            }}
-          >
-            {item.floor.status === "dead" ? (
-              <DeadFloor floor={item.floor} />
-            ) : (
-              <img
-                src={`/api/floors/${item.floor.id}/image`}
-                alt={item.floor.displayName}
-                width={frame.width}
-                height={frame.height}
-                draggable={false}
-              />
-            )}
-            <button className={styles.remove} onClick={() => removeFloor(item.floor.id)}>
-              REMOVE
-            </button>
-          </figure>
-        ))}
+        {items.map((entry, index) => {
+          const style = {
+            width: frame.width,
+            height: frame.height,
+            marginTop: index === 0 ? 0 : -overlap,
+            // Higher floors paint over lower ones. Tiles are laid out
+            // top-first, so without this the basement would cover the tower.
+            zIndex: items.length - index,
+          } as const;
+
+          if (!entry.placed) {
+            return (
+              <figure
+                key={entry.key}
+                className={`${styles.tile} ${styles.construction} ${styles.settle}`}
+                style={style}
+              >
+                <img
+                  src="/construction-floor.png"
+                  alt="Floor under construction"
+                  width={frame.width}
+                  height={frame.height}
+                  draggable={false}
+                />
+                <span className={styles.scan} />
+              </figure>
+            );
+          }
+
+          const item = entry.placed;
+          return (
+            <figure
+              key={entry.key}
+              id={item.floor.id}
+              className={`${styles.tile} ${item.floor.id === newest ? styles.settle : ""}`}
+              style={style}
+            >
+              {item.floor.status === "dead" ? (
+                <DeadFloor floor={item.floor} />
+              ) : (
+                <img
+                  src={`/api/floors/${item.floor.id}/image`}
+                  alt={item.floor.displayName}
+                  width={frame.width}
+                  height={frame.height}
+                  draggable={false}
+                />
+              )}
+              <button className={styles.remove} onClick={() => removeFloor(item.floor.id)}>
+                REMOVE
+              </button>
+            </figure>
+          );
+        })}
       </div>
 
       {placed.length === 0 && (

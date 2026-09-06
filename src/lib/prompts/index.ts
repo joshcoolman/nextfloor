@@ -64,9 +64,18 @@ export function renderSeedPrompt({ kind, content, note }: SeedVars): string {
  * Every later tile. The reference image carries the contract, so the prompt's
  * job is to forbid changing it rather than to describe it from nothing.
  */
-export function renderEditPrompt({ theme, content }: { theme: string; content: string }): string {
+export function renderEditPrompt({
+  theme,
+  content,
+  number,
+}: {
+  theme: string;
+  content: string;
+  number: number;
+}): string {
   return section(read("edit-instructions.md"), "EDIT")
     .replaceAll("{{theme}}", theme)
+    .replaceAll("{{number}}", String(number))
     .replace("{{content}}", content);
 }
 

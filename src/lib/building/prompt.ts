@@ -39,8 +39,8 @@ function composeContent(spec: FloorSpec): string {
 }
 
 /** Used when a reference tile exists, which is every floor after the first. */
-export function composeEditPrompt(spec: FloorSpec, theme: string): string {
-  return renderEditPrompt({ theme, content: composeContent(spec) });
+export function composeEditPrompt(spec: FloorSpec, theme: string, number: number): string {
+  return renderEditPrompt({ theme, content: composeContent(spec), number });
 }
 
 /** Used only for the very first tile, which has no reference image to match. */

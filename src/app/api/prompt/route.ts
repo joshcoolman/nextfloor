@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   const mode = new URL(request.url).searchParams.get("mode") ?? "seed";
   const text =
     mode === "edit"
-      ? renderEditPrompt({ theme: "<< the user's theme >>", content })
+      ? renderEditPrompt({ theme: "<< the user's theme >>", content, number: 7 })
       : renderSeedPrompt({ kind, content });
   return new Response(text, { headers: { "content-type": "text/plain; charset=utf-8" } });
 }

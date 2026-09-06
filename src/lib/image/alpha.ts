@@ -81,7 +81,76 @@ export async function restoreAlpha(input: Buffer): Promise<Buffer> {
     );
   }
 
+  defringe(raw, width, height);
+
   return sharp(raw, { raw: { width, height, channels: 4 } })
     .png()
     .toBuffer();
+}
+
+/** Beyond this distance from the background colour a pixel is treated as solid art. */
+const FRINGE_DISTANCE = 140;
+
+/**
+ * Un-blends the one-pixel boundary between art and keyed-out background.
+ *
+ * Keying is binary: a pixel is either cleared or kept. But an anti-aliased edge
+ * pixel is a blend of the artwork and whatever background it was drawn over,
+ * and keeping it whole leaves a rim of that background colour around every
+ * tile -- white speckle against a dark building.
+ *
+ * Each boundary pixel is treated as `P = a*F + (1-a)*B`, where B is the mean of
+ * its cleared neighbours. Estimating `a` from how far P sits from B recovers
+ * both the coverage and the underlying colour F.
+ */
+function defringe(raw: Buffer, width: number, height: number): void {
+  const original = Buffer.from(raw);
+  const at = (x: number, y: number) => (y * width + x) * 4;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = at(x, y);
+      if (raw[i + 3] === 0) continue;
+
+      let br = 0;
+      let bg = 0;
+      let bb = 0;
+      let count = 0;
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+          const n = at(nx, ny);
+          if (raw[n + 3] !== 0) continue;
+          br += original[n];
+          bg += original[n + 1];
+          bb += original[n + 2];
+          count += 1;
+        }
+      }
+      if (!count) continue;
+
+      br /= count;
+      bg /= count;
+      bb /= count;
+
+      const dr = original[i] - br;
+      const dg = original[i + 1] - bg;
+      const db = original[i + 2] - bb;
+      const distance = Math.sqrt(dr * dr + dg * dg + db * db);
+      if (distance >= FRINGE_DISTANCE) continue;
+
+      const alpha = Math.max(0, Math.min(1, distance / FRINGE_DISTANCE));
+      if (alpha < 0.06) {
+        raw[i + 3] = 0;
+        continue;
+      }
+
+      raw[i] = Math.max(0, Math.min(255, (original[i] - (1 - alpha) * br) / alpha));
+      raw[i + 1] = Math.max(0, Math.min(255, (original[i + 1] - (1 - alpha) * bg) / alpha));
+      raw[i + 2] = Math.max(0, Math.min(255, (original[i + 2] - (1 - alpha) * bb) / alpha));
+      raw[i + 3] = Math.round(alpha * 255);
+    }
+  }
 }

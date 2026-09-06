@@ -77,7 +77,7 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor> {
 
   const reference = await loadReference();
   const prompt = reference
-    ? composeEditPrompt(spec, theme)
+    ? composeEditPrompt(spec, theme, ordinal)
     : composeSeedPrompt(spec, kind);
 
   let tile;
