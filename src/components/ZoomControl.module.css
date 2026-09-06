@@ -1,44 +1,58 @@
 .control {
   display: flex;
-  align-items: center;
-  gap: 2px;
+  align-items: stretch;
   margin-top: 10px;
   border: 1px solid var(--edge);
 }
 
 .label {
   flex: 1;
+  display: flex;
+  align-items: center;
   padding: 0 12px;
   font-size: 11px;
   letter-spacing: 0.08em;
   color: var(--ink-faint);
 }
 
+/* A readout, not a field: clicking it resets rather than inviting typing. */
 .value {
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-dim);
-}
-
-.hint {
-  padding-right: 10px;
-  font-size: 10px;
-  color: #3f3f3f;
-  white-space: nowrap;
-}
-
-.control button {
   padding: 9px 12px;
-  font-size: 12px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
   color: var(--ink-dim);
   border-left: 1px solid var(--edge);
 }
 
-.control button:hover:not(:disabled) {
+.value:hover {
   color: var(--ink);
   background: rgba(255, 255, 255, 0.06);
 }
 
-.control button:disabled {
+.stepper {
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--edge);
+}
+
+.step {
+  flex: 1;
+  padding: 0 9px;
+  font-size: 7px;
+  line-height: 1;
+  color: var(--ink-faint);
+}
+
+.step:first-child {
+  border-bottom: 1px solid var(--edge);
+}
+
+.step:hover:not(:disabled) {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.step:disabled {
   color: #2e2e2e;
   cursor: not-allowed;
 }

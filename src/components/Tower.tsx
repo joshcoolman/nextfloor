@@ -5,7 +5,7 @@ import styles from "./Tower.module.css";
 import AddFloorControl from "./AddFloorControl";
 import DeadFloor from "./DeadFloor";
 import KeyPanel from "./KeyPanel";
-import ZoomControl, { ZOOM_STEPS } from "./ZoomControl";
+import ZoomControl, { DEFAULT_ZOOM, ZOOM_STEPS } from "./ZoomControl";
 import DeleteFloors from "./DeleteFloors";
 import { useKeys } from "@/hooks/useKeys";
 import { frameOf, placeFloors } from "@/lib/building/layout";
@@ -19,7 +19,7 @@ export default function Tower() {
   const pendingCount = floors.filter((floor) => floor.status === "pending").length;
   const [error, setError] = useState<string | null>(null);
   const [newest, setNewest] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(0.6);
+  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
 
   const { keys, setKeys, headers } = useKeys();
   const frame = useMemo(() => frameOf(floors), [floors]);
@@ -96,7 +96,7 @@ export default function Tower() {
     const step = (direction: 1 | -1) => {
       setZoom((current) => {
         const index = ZOOM_STEPS.indexOf(current);
-        const from = index === -1 ? ZOOM_STEPS.indexOf(1) : index;
+        const from = index === -1 ? ZOOM_STEPS.indexOf(DEFAULT_ZOOM) : index;
         const next = ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, from + direction))];
         try {
           localStorage.setItem("nextfloor.zoom", String(next));

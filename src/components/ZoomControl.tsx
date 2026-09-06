@@ -2,7 +2,9 @@
 
 import styles from "./ZoomControl.module.css";
 
-export const ZOOM_STEPS = [0.2, 0.3, 0.4, 0.5, 0.6, 0.75, 0.9, 1, 1.25, 1.5, 2];
+/** Capped at 100%: past that the tiles are upscaled and the pixel art softens. */
+export const ZOOM_STEPS = [0.2, 0.3, 0.4, 0.5, 0.6, 0.75, 0.9, 1];
+export const DEFAULT_ZOOM = 0.6;
 
 interface Props {
   zoom: number;
@@ -10,15 +12,37 @@ interface Props {
 }
 
 export default function ZoomControl({ zoom, onChange }: Props) {
+  const index = ZOOM_STEPS.indexOf(zoom);
+  const at = index === -1 ? ZOOM_STEPS.indexOf(DEFAULT_ZOOM) : index;
+
   return (
     <div className={styles.control}>
-      <span className={styles.label}>
-        ZOOM <span className={styles.value}>{Math.round(zoom * 100)}%</span>
-      </span>
-      <span className={styles.hint}>⌘ scroll · ⌘⇧↑↓</span>
-      <button onClick={() => onChange(1)} disabled={zoom === 1}>
-        RESET
+      <span className={styles.label}>ZOOM</span>
+      <button
+        className={styles.value}
+        onClick={() => onChange(DEFAULT_ZOOM)}
+        title="Reset to 60%"
+      >
+        {Math.round(zoom * 100)}%
       </button>
+      <span className={styles.stepper}>
+        <button
+          className={styles.step}
+          onClick={() => onChange(ZOOM_STEPS[at + 1])}
+          disabled={at === ZOOM_STEPS.length - 1}
+          aria-label="Zoom in"
+        >
+          ▲
+        </button>
+        <button
+          className={styles.step}
+          onClick={() => onChange(ZOOM_STEPS[at - 1])}
+          disabled={at === 0}
+          aria-label="Zoom out"
+        >
+          ▼
+        </button>
+      </span>
     </div>
   );
 }
