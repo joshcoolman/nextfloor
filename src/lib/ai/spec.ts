@@ -26,13 +26,12 @@ Rules:
 - Give the floor small stories: an argument, a mishap, someone hiding, a cat
   somewhere it should not be.
 - Reference real brands, games and characters where they fit the theme; this is
-  a personal art project, not a commercial product. Product logos, arcade
-  cabinets, snack packaging and the like come through fine, so use them.
-- Named characters, ships and vehicles from film and television franchises are
-  the one exception: the image model refuses the whole floor over those. Keep
-  the thing itself and describe it by its shape rather than naming it -- "a
-  battered freighter with a saucer hull and a side-mounted cockpit". Stay as
-  close to the user's theme as you can; only the proper noun goes.
+  a personal art project, not a commercial product.
+- Keep in mind that the image model downstream mediates content, and heavily
+  protected IP can trigger a rejection that costs the whole floor. Some brands
+  are safe and some are policed hard; judge which is which. Where the risk is
+  real, lighten the wording rather than the idea -- describe the thing instead
+  of naming it, and stay as close to the user's theme as you can.
 - displayName is at most 28 characters, title case, no quotes.
 `.trim();
 
