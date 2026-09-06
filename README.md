@@ -100,15 +100,17 @@ and fal keys.
 
 **Last shipped**
 
+- New floors fill the lowest free number first -- gaps left by deletions, and
+  slots held by unkept condemned floors -- and only grow the building when the
+  sequence is contiguous.
+- The theme interpreter is told that content is mediated downstream, so it
+  lightens wording rather than dropping the idea when IP would be refused.
 - Condemned floors: a failed build is now a choice, not a fact. Nothing is added
   to the tower unless the visitor picks "leave it standing"; the wreck is drawn
   from `public/condemned-floor.png`.
 - One dialog with panes (add / floors / keys) behind a single round button; the control rail is gone.
 - Background queue: a floor claims its slot and returns immediately, generating in `after()`. A refresh loses nothing.
 - Checkerboard detection by orphan-pixel fraction, rejected and retried once, then a dead floor.
-- Theme interpreter on Sonnet with selectable effort; theme cap raised to 2000 characters.
-- Zoom as a pinned stepper capped at 100%, plus cmd-scroll and cmd-shift-arrows.
-- Static roof, reference floor and basement imported from `public/`; generated floors are edits of the reference.
 
 **Up next**
 
@@ -121,8 +123,8 @@ Known gaps, in order of how much they cost:
   canvas; the static tiles are 1774x887 filling ~94-97%. Floors therefore sit a
   few percent large with a different vertical offset and do not line up
   precisely. The fix is normalising each tile's bounding box to the reference's.
-- Floor numbers are baked into the artwork, so deleting a middle floor leaves
-  the ones above it mislabelled.
+- Floor numbers are baked into the artwork, so floors already mislabelled by an
+  earlier deletion stay that way until they are regenerated.
 
 **Focus**
 
