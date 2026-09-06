@@ -5,6 +5,38 @@ import { ContractError, RefusalError } from "./errors";
 const MODEL = "gemini-3.1-flash-image";
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+interface Block {
+  type: string;
+  data?: string;
+  text?: string;
+  mime_type?: string;
+}
+
+/**
+ * Reads the image out of a response. The interactions endpoint returns
+ * `steps[].content[]`; the older generateContent shape returns
+ * `candidates[].content.parts[]`. Accept either rather than break on a rename.
+ */
+function collectBlocks(body: any): Block[] {
+  const steps: Block[] = (body?.steps ?? [])
+    .filter((step: any) => step?.type === "model_output")
+    .flatMap((step: any) => step?.content ?? []);
+  if (steps.length) return steps;
+
+  const parts: any[] = body?.candidates?.[0]?.content?.parts ?? [];
+  return parts.map((part) =>
+    part?.inlineData || part?.inline_data
+      ? {
+          type: "image",
+          data: (part.inlineData ?? part.inline_data).data,
+          mime_type: (part.inlineData ?? part.inline_data).mimeType ?? (part.inline_data ?? {}).mime_type,
+        }
+      : { type: "text", text: part?.text },
+  );
+}
+
 /** Allowed drift from 21:9 before a tile is rejected and regenerated. */
 const ASPECT_TOLERANCE = 0.02;
 
@@ -56,20 +88,31 @@ export async function generateFloorImage(
     }),
   });
 
-  const body = await response.json().catch(() => null);
+  const raw = await response.text();
+  let body: any = null;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    // Non-JSON responses (proxy errors, HTML error pages) still need reporting.
+  }
 
   if (!response.ok) {
-    const message = body?.error?.message ?? `Image model returned ${response.status}.`;
-    if (response.status === 400 && /safety|blocked|policy/i.test(message)) {
+    // The image model's own words are the only useful debugging signal here,
+    // so carry them all the way to the caller instead of the status code alone.
+    const detail =
+      body?.error?.message ??
+      body?.message ??
+      body?.error?.status ??
+      raw.slice(0, 400).trim();
+    const message = `Image model returned ${response.status}: ${detail || "no detail given"}`;
+    console.error("[nextfloor] image generation failed", response.status, raw.slice(0, 2000));
+    if (/safety|blocked|policy|prohibited/i.test(message)) {
       throw new RefusalError(message, "image_safety");
     }
     throw new Error(message);
   }
 
-  const blocks: Array<{ type: string; data?: string; text?: string; mime_type?: string }> =
-    (body?.steps ?? [])
-      .filter((step: { type: string }) => step.type === "model_output")
-      .flatMap((step: { content?: unknown[] }) => step.content ?? []);
+  const blocks = collectBlocks(body);
 
   const image = blocks.find((block) => block.type === "image" && block.data);
   if (!image?.data) {
@@ -78,6 +121,7 @@ export async function generateFloorImage(
       .map((block) => block.text)
       .join(" ")
       .trim();
+    console.error("[nextfloor] image model returned no artwork", raw.slice(0, 2000));
     throw new RefusalError(
       said || "The image model returned no artwork for this floor.",
       "image_no_output",
