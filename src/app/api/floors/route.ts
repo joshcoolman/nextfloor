@@ -1,17 +1,21 @@
 import { NextResponse } from "next/server";
 import { MissingKeyError, resolveKeys, serverKeysAvailable } from "@/lib/ai/keys";
-import { listFloors, referenceTile } from "@/lib/db/floors";
-import { generateFloor } from "@/lib/pipeline";
+import { listFloors } from "@/lib/db/floors";
+import { ensureBuilding, generateFloor } from "@/lib/pipeline";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 export async function GET() {
-  const floors = await listFloors();
+  // The static building raises itself on first visit; no keys, no generation.
+  try {
+    await ensureBuilding();
+  } catch (error) {
+    console.error("[nextfloor] could not raise the static building", error);
+  }
   return NextResponse.json({
-    floors,
-    seeded: Boolean(await referenceTile()),
+    floors: await listFloors(),
     serverKeys: serverKeysAvailable(),
   });
 }

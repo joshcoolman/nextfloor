@@ -177,35 +177,30 @@ async function importFloor(
 }
 
 /**
- * The building always exists. Hand-made tiles in `public/building/` are used
- * when present -- the reference tile decides how every later floor looks, so a
- * drawn one beats a rolled one. Otherwise the first three floors are generated,
- * lobby first, and the caps are matched to it.
+ * The building always exists. Its roof, reference floor and basement are drawn
+ * artwork imported from `public/`, so there is nothing to generate and no key
+ * needed -- a visitor with no keys still gets a building to look at. Adding a
+ * floor is the only action that costs anything.
+ *
+ * Idempotent: the unique index on is_reference makes a concurrent second call
+ * fail rather than duplicate the reference floor.
  */
-export async function seedBuilding(keys: Keys): Promise<Floor[]> {
+export async function ensureBuilding(): Promise<Floor[]> {
   assertConsistentTiles();
   const existing = await listFloors();
   const created: Floor[] = [];
 
-  // Keyed on the reference tile, not on floor count: if the lobby came back
-  // dead there is nothing for later floors to match against, so try again.
-  if (!(await referenceTile())) {
-    created.push(
-      (await importFloor("floor", BASE_FLOOR_THEME, "Ground Floor", true)) ??
-        (await generateFloor({ keys, theme: BASE_FLOOR_THEME, kind: "floor", isReference: true })),
-    );
+  if (!existing.some((floor) => floor.kind === "floor")) {
+    const floor = await importFloor("floor", BASE_FLOOR_THEME, "80s Video Games", true);
+    if (floor) created.push(floor);
   }
   if (!existing.some((floor) => floor.kind === "basement")) {
-    created.push(
-      (await importFloor("basement", BASEMENT_THEME, "Basement", false)) ??
-        (await generateFloor({ keys, theme: BASEMENT_THEME, kind: "basement" })),
-    );
+    const basement = await importFloor("basement", BASEMENT_THEME, "Sub-Level", false);
+    if (basement) created.push(basement);
   }
   if (!existing.some((floor) => floor.kind === "roof")) {
-    created.push(
-      (await importFloor("roof", ROOF_THEME, "Roof", false)) ??
-        (await generateFloor({ keys, theme: ROOF_THEME, kind: "roof" })),
-    );
+    const roof = await importFloor("roof", ROOF_THEME, "Rooftop", false);
+    if (roof) created.push(roof);
   }
   return created;
 }

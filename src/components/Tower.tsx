@@ -13,7 +13,6 @@ import type { Floor } from "@/lib/ai/types";
 
 export default function Tower() {
   const [floors, setFloors] = useState<Floor[]>([]);
-  const [seeded, setSeeded] = useState<boolean | null>(null);
   const [serverKeys, setServerKeys] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -21,7 +20,7 @@ export default function Tower() {
   const [viewportHeight, setViewportHeight] = useState(0);
   const framedRef = useRef(false);
 
-  const { keys, setKeys, headers, loaded } = useKeys();
+  const { keys, setKeys, headers } = useKeys();
   const frame = useMemo(() => frameOf(floors), [floors]);
   const placed = useMemo(() => placeFloors(floors, frame), [floors, frame]);
   const height = towerHeight(placed.length, frame);
@@ -45,14 +44,9 @@ export default function Tower() {
       .then((response) => response.json())
       .then((data) => {
         setFloors(data.floors);
-        setSeeded(data.seeded);
         setServerKeys(data.serverKeys);
       })
-      .catch(() => {
-        // Show the curtain rather than an empty screen; the error explains why.
-        setSeeded(false);
-        setError("Could not reach the building. Is DATABASE_URL set?");
-      });
+      .catch(() => setError("Could not reach the building. Is DATABASE_URL set?"));
   }, []);
 
   /** Frame the whole tower once, the first time there is something to look at. */
@@ -79,20 +73,6 @@ export default function Tower() {
     },
     [headers],
   );
-
-  const raiseBuilding = useCallback(async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const data = await post("/api/seed");
-      setFloors((current) => [...current, ...(data.floors as Floor[])]);
-      setSeeded(true);
-    } catch (thrown) {
-      setError(thrown instanceof Error ? thrown.message : "Could not raise the building.");
-    } finally {
-      setBusy(false);
-    }
-  }, [post]);
 
   const addFloor = useCallback(
     async (theme: string) => {
@@ -199,24 +179,7 @@ export default function Tower() {
       <KeyPanel keys={keys} onChange={setKeys} serverKeys={serverKeys} />
       {placed.length > 0 && <Navigator placed={placed} onSelect={jumpTo} />}
 
-      {seeded && (
-        <AddFloorControl busy={busy} disabled={!ready} error={error} onSubmit={addFloor} />
-      )}
-
-      {loaded && seeded === false && (
-        <div className={styles.curtain}>
-          <h1>NEXTFLOOR</h1>
-          <p>
-            There is no building yet. Raising it generates the lobby, the basement and the
-            roof, and the lobby becomes the reference every later floor is matched against.
-            This takes a few minutes and spends your own credit.
-          </p>
-          <button onClick={raiseBuilding} disabled={busy || !ready}>
-            {busy ? "BREAKING GROUND..." : ready ? "RAISE THE BUILDING" : "ENTER YOUR KEYS FIRST"}
-          </button>
-          {error && <p className={styles.curtainError}>{error}</p>}
-        </div>
-      )}
+      <AddFloorControl busy={busy} disabled={!ready} error={error} onSubmit={addFloor} />
     </>
   );
 }
