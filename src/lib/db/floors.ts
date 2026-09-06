@@ -216,19 +216,36 @@ export async function completeFloor(
 }
 
 /**
- * A pending floor whose request died -- a redeploy, a crash -- would otherwise
- * sit under construction forever. After the cutoff it becomes a dead floor,
- * which is the honest record and already renders.
+ * When this process started. Generation runs in `after()`, inside this process,
+ * so anything left pending from before this moment is definitionally orphaned:
+ * a restart, a redeploy or a hot reload killed the work that would have
+ * finished it. No waiting required to know that.
  */
-export async function sweepStalePending(minutes = 15): Promise<number> {
+const BOOTED_AT = new Date();
+
+/**
+ * Turns floors that will never finish into dead floors.
+ *
+ * Two cases, and the first is exact rather than a guess:
+ *   - pending from before this process booted: the work is gone.
+ *   - pending far longer than a generation can take: hung inside this process.
+ *
+ * A generation is one or two image calls and one or two spec calls, so ten
+ * minutes is already several times the realistic worst case.
+ */
+export async function sweepStalePending(minutes = 10): Promise<number> {
   await ensureSchema();
   const { rowCount } = await pool().query(
     `update floors
         set status = 'dead',
-            failure_reason = 'Construction stopped: the server restarted before this floor was finished.'
+            failure_reason = case
+              when created_at < $2
+                then 'Construction stopped: the server restarted before this floor was finished.'
+              else 'Construction stalled and was abandoned.'
+            end
       where status = 'pending'
-        and created_at < now() - ($1 || ' minutes')::interval`,
-    [String(minutes)],
+        and (created_at < $2 or created_at < now() - ($1 || ' minutes')::interval)`,
+    [String(minutes), BOOTED_AT.toISOString()],
   );
   return rowCount ?? 0;
 }
