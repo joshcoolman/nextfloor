@@ -1,5 +1,6 @@
 import { TILE } from "@/lib/building/styleGuide";
 import { detectMime, readDimensions } from "@/lib/image/dimensions";
+import { ORPHAN_LIMIT, orphanFraction } from "@/lib/image/artifacts";
 import { ContractError } from "./errors";
 import type { Keys } from "./keys";
 import { fal } from "./providers/fal";
@@ -42,6 +43,17 @@ export async function generateFloorImage(
     throw new ContractError(
       `Generated tile is ${size.width}x${size.height}, which does not match the ` +
         `reference frame (ratio ${target.toFixed(3)}).`,
+    );
+  }
+
+  // The model intermittently draws a transparency checkerboard into the
+  // surround. It is rejected rather than cleaned: the retry is cheap and
+  // repairing it in place damages the artwork.
+  const orphans = await orphanFraction(tile.bytes);
+  if (orphans > ORPHAN_LIMIT) {
+    throw new ContractError(
+      `Generated tile has ${(orphans * 100).toFixed(2)}% orphaned pixels, which means a ` +
+        `checkerboard or other debris was drawn around the building.`,
     );
   }
 
