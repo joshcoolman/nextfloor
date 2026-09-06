@@ -56,8 +56,11 @@ export default function Tower() {
     if (!viewport) return;
     framedRef.current = true;
     const rect = viewport.getBoundingClientRect();
-    const scale = Math.min((rect.width * 0.82) / frame.width, (rect.height * 0.86) / height);
-    focusOn(height / 2, scale);
+    // Leave room for the dock at the bottom, so the first thing you see is the
+    // whole building rather than a building with its basement behind a toolbar.
+    const usableHeight = rect.height - 150;
+    const scale = Math.min((rect.width * 0.82) / frame.width, (usableHeight * 0.94) / height);
+    focusOn(height / 2 - 40 / scale, scale);
   }, [focusOn, frame.width, height, placed.length, viewportRef]);
 
   const post = useCallback(
