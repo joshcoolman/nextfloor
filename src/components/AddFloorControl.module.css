@@ -1,10 +1,5 @@
 .dock {
-  position: fixed;
-  left: 50%;
-  bottom: 22px;
-  transform: translateX(-50%);
-  z-index: 40;
-  width: min(560px, calc(100vw - 32px));
+  width: 100%;
 }
 
 .form {

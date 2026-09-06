@@ -1,30 +1,28 @@
-.viewport {
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-  cursor: grab;
-  touch-action: none;
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   background: var(--ground);
 }
 
-.stage {
-  position: absolute;
-  top: 0;
-  left: 0;
-  transform-origin: 0 0;
-  will-change: transform;
+/* The stack is the page. Tiles sit at their natural size and the window
+   scrolls, rather than a viewport rig scaling them to fit. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .tile {
-  position: absolute;
-  left: 0;
+  position: relative;
+  margin: 0;
+  line-height: 0;
 }
 
 .tile img {
   display: block;
-  width: 100%;
-  height: 100%;
-  /* Pixel art must not be smoothed when zoomed in. */
+  /* Pixel art must not be smoothed. */
   image-rendering: pixelated;
 }
 
@@ -43,83 +41,39 @@
   }
 }
 
-/* The gutter: labels track their floor but never scale, so they stay legible. */
-.gutter {
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 240px;
-  z-index: 30;
-  pointer-events: none;
-}
-
-.label {
-  position: absolute;
-  left: 18px;
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  transform: translateY(-50%);
-  pointer-events: auto;
-  white-space: nowrap;
-}
-
-.labelOrdinal {
-  font-size: 15px;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink);
-}
-
-.labelName {
-  font-size: 11px;
-  color: var(--ink-faint);
-  max-width: 170px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.label[data-dead="true"] .labelOrdinal,
-.label[data-dead="true"] .labelName {
-  color: var(--danger);
-}
-
 .remove {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
   font-size: 10px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
   color: var(--ink-faint);
+  background: rgba(0, 0, 0, 0.72);
+  border: 1px solid var(--edge);
+  padding: 4px 8px;
   opacity: 0;
   transition: opacity 130ms ease, color 130ms ease;
 }
 
-.label:hover .remove {
+.tile:hover .remove {
   opacity: 1;
 }
 
 .remove:hover {
   color: var(--danger);
+  border-color: var(--danger);
 }
 
-.controls {
-  position: fixed;
-  left: 16px;
-  bottom: 22px;
-  z-index: 40;
-  display: flex;
-  gap: 6px;
+/* Last item on the page, in normal flow. */
+.footer {
+  width: min(560px, calc(100vw - 32px));
+  padding: 40px 0 64px;
 }
 
-.controls button {
-  border: 1px solid var(--edge);
-  background: rgba(0, 0, 0, 0.9);
-  backdrop-filter: blur(8px);
-  padding: 7px 11px;
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  color: var(--ink-dim);
-}
-
-.controls button:hover {
-  color: var(--ink);
-  border-color: var(--ink-faint);
+.empty {
+  padding: 120px 24px;
+  color: var(--ink-faint);
+  text-align: center;
+  line-height: 1.7;
 }

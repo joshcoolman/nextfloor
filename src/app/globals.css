@@ -24,11 +24,6 @@ body {
     sans-serif;
   font-size: 13px;
   -webkit-font-smoothing: antialiased;
-  overscroll-behavior: none;
-}
-
-body {
-  overflow: hidden;
 }
 
 button {
