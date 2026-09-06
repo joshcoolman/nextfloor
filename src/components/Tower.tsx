@@ -5,6 +5,7 @@ import styles from "./Tower.module.css";
 import AddFloorControl from "./AddFloorControl";
 import DeadFloor from "./DeadFloor";
 import KeyPanel from "./KeyPanel";
+import ZoomControl from "./ZoomControl";
 import { useKeys } from "@/hooks/useKeys";
 import { frameOf, placeFloors } from "@/lib/building/layout";
 import type { Floor } from "@/lib/ai/types";
@@ -15,6 +16,7 @@ export default function Tower() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newest, setNewest] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(0.6);
 
   const { keys, setKeys, headers } = useKeys();
   const frame = useMemo(() => frameOf(floors), [floors]);
@@ -23,6 +25,24 @@ export default function Tower() {
 
   /** How much each tile rides up over the one below it. */
   const overlap = frame.height - frame.pitch;
+
+  useEffect(() => {
+    try {
+      const stored = Number(localStorage.getItem("nextfloor.zoom"));
+      if (stored > 0) setZoom(stored);
+    } catch {
+      // A blocked store just means the default zoom.
+    }
+  }, []);
+
+  const changeZoom = useCallback((next: number) => {
+    setZoom(next);
+    try {
+      localStorage.setItem("nextfloor.zoom", String(next));
+    } catch {
+      // Non-fatal: the zoom still applies for this session.
+    }
+  }, []);
 
   useEffect(() => {
     fetch("/api/floors")
@@ -75,7 +95,12 @@ export default function Tower() {
 
   return (
     <main className={styles.page}>
-      <div className={styles.stack}>
+      {/*
+        CSS zoom rather than a transform: zoom takes part in layout, so the page
+        height shrinks with it and ordinary scrolling still works. A transform
+        would leave the layout box at full size and leave phantom scroll area.
+      */}
+      <div className={styles.stack} style={{ zoom }}>
         {placed.map((item, index) => (
           <figure
             key={item.floor.id}
@@ -116,6 +141,7 @@ export default function Tower() {
 
       <footer className={styles.footer}>
         <AddFloorControl busy={busy} disabled={!ready} error={error} onSubmit={addFloor} />
+        <ZoomControl zoom={zoom} onChange={changeZoom} />
         <KeyPanel keys={keys} onChange={setKeys} serverKeys={serverKeys} />
       </footer>
     </main>
