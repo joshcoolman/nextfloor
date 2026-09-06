@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { composeEditPrompt, composeSeedPrompt } from "@/lib/building/prompt";
+import { EDIT_PROMPT_NAME } from "@/lib/prompts";
 import {
   BASEMENT_THEME,
   BASE_FLOOR_THEME,
@@ -120,7 +121,15 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor | n
     status: "ready",
     displayName: spec.displayName,
     spec,
-    meta: { attempts, effort: options.effort ?? "medium", width: tile.width, height: tile.height },
+    // Which prompt built it, so a floor generated during an experiment can be
+    // told from one generated before it without reading the deploy history.
+    meta: {
+      attempts,
+      effort: options.effort ?? "medium",
+      editPrompt: reference ? EDIT_PROMPT_NAME : null,
+      width: tile.width,
+      height: tile.height,
+    },
     image: { key, mime: mimeType, width: tile.width, height: tile.height },
   });
 }

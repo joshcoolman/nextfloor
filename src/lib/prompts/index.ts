@@ -61,6 +61,16 @@ export function renderSeedPrompt({ kind, content, note }: SeedVars): string {
 }
 
 /**
+ * Which edit prompt is in play. The working prompt is the default and stays
+ * that way; `EDIT_PROMPT=basic` swaps in the shorter experiment so the two can
+ * be compared on the same reference without editing either.
+ */
+export const EDIT_PROMPT_NAME = process.env.EDIT_PROMPT === "basic" ? "basic" : "default";
+
+const EDIT_FILE =
+  EDIT_PROMPT_NAME === "basic" ? "edit-instructions-basic.md" : "edit-instructions.md";
+
+/**
  * Every later tile. The reference image carries the contract, so the prompt's
  * job is to forbid changing it rather than to describe it from nothing.
  */
@@ -73,7 +83,7 @@ export function renderEditPrompt({
   content: string;
   number: number;
 }): string {
-  return section(read("edit-instructions.md"), "EDIT")
+  return section(read(EDIT_FILE), "EDIT")
     .replaceAll("{{theme}}", theme)
     .replaceAll("{{number}}", String(number))
     .replace("{{content}}", content);
