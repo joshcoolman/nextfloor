@@ -103,7 +103,8 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor> {
     });
   }
 
-  const key = `floors/${randomUUID()}.png`;
+  const extension = tile.mimeType === "image/png" ? "png" : "jpg";
+  const key = `floors/${randomUUID()}.${extension}`;
   await putImage(key, tile.bytes, tile.mimeType);
 
   return insertFloor({

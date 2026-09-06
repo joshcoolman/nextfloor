@@ -11,8 +11,15 @@
 export const TILE = {
   /** Hard constraint from image model support. A floor band is not free-form. */
   aspectRatio: "21:9",
-  imageSize: "2K",
-  mimeType: "image/png",
+  /**
+   * 4K, not 2K, specifically because the output must be JPEG: the image API
+   * rejects image/png. JPEG ringing around the hard edges of pixel art is the
+   * one artefact this whole look cannot afford, so the tile is generated at
+   * enough resolution that the compression noise sits well below the apparent
+   * size of a drawn pixel.
+   */
+  imageSize: "4K",
+  mimeType: "image/jpeg",
   /**
    * Fraction of tile height that the slab occupies. Tiles stack with this much
    * overlap so the upper tile's concrete slab covers the lower tile's ceiling
