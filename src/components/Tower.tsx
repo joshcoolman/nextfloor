@@ -11,7 +11,7 @@ import { frameOf, placeFloors } from "@/lib/building/layout";
 import type { Effort, Floor } from "@/lib/ai/types";
 
 /** Faint rather than gone: the lifted floor still reads as a floor. */
-const PEEK_OPACITY = 0.4;
+const PEEK_OPACITY = 0.2;
 
 export default function Tower() {
   const [floors, setFloors] = useState<Floor[]>([]);
@@ -248,13 +248,15 @@ export default function Tower() {
    * Only one floor is ever lifted, so clicking a second storey moves the effect
    * there rather than accumulating ghosts to clean up.
    *
-   * The roof is never lifted. It is the building's lid rather than a storey, and
-   * fading it just punches a hole in the sky.
+   * The roof lifts like anything else. It was excluded on the theory that it is
+   * the building's lid rather than a storey, but it overlaps the top floor
+   * exactly as every other tile overlaps its neighbour -- and the top floor is
+   * the one with no other way to see its back.
    */
   const peek = useCallback(
     (index: number) => {
       const over = placed[index - 1]?.floor;
-      if (!over || over.kind === "roof") return;
+      if (!over) return;
       setPeeked((current) => (current === over.id ? null : over.id));
     },
     [placed],
