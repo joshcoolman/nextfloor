@@ -7,6 +7,8 @@
   --ink-faint: #565656;
   --signal: #ffffff;
   --danger: #d96a60;
+  /* Reserved for the controls. The building lays out beside it, never under it. */
+  --rail: clamp(260px, 20vw, 360px);
 }
 
 * {
