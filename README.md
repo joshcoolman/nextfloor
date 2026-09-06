@@ -6,6 +6,8 @@ eye candy mostly. useless mainly.
 
 Bring your own Anthropic and fal keys to add a floor; looking costs nothing.
 
+![The building](docs/building.png)
+
 A generated isometric pixel-art building that grows one floor at a time. Type a
 theme, and an AI pipeline draws a floor in that theme and stacks it on the tower.
 
