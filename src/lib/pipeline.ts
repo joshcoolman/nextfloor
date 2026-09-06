@@ -68,7 +68,7 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor | n
     });
   } catch (error) {
     if (error instanceof RefusalError) {
-      return dead(error.message, { stage: "spec", category: error.category });
+      return dead(error.message, { stage: "spec", category: error.category, refusal: true });
     }
     return dead(error instanceof Error ? error.message : "The theme interpreter failed.", {
       stage: "spec",
@@ -90,7 +90,7 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor | n
       break;
     } catch (error) {
       if (error instanceof RefusalError) {
-        return dead(error.message, { stage: "image", category: error.category, spec });
+        return dead(error.message, { stage: "image", category: error.category, refusal: true, spec });
       }
       if (error instanceof ContractError) {
         lastContractFailure = error.message;

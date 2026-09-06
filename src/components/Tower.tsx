@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./Tower.module.css";
+import CondemnedDialog from "./CondemnedDialog";
 import ControlPanel from "./ControlPanel";
 import DeadFloor from "./DeadFloor";
 import ZoomControl, { DEFAULT_ZOOM, ZOOM_STEPS } from "./ZoomControl";
@@ -21,9 +22,31 @@ export default function Tower() {
   const [newest, setNewest] = useState<string | null>(null);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
 
+  const [reopen, setReopen] = useState(0);
+  const [deciding, setDeciding] = useState(false);
+  /** Floors this browser started, so only its own failures interrupt it. */
+  const mine = useRef<Set<string>>(new Set());
+
   const { keys, setKeys, headers } = useKeys();
-  const frame = useMemo(() => frameOf(floors), [floors]);
-  const placed = useMemo(() => placeFloors(floors, frame), [floors, frame]);
+
+  /**
+   * A condemned floor is not in the building until someone keeps it. Until
+   * then the row exists only to be decided on, so it is not drawn.
+   */
+  const visible = useMemo(
+    () => floors.filter((floor) => floor.status !== "dead" || floor.meta?.kept === true),
+    [floors],
+  );
+  const condemned = useMemo(
+    () =>
+      floors.find(
+        (floor) =>
+          floor.status === "dead" && floor.meta?.kept !== true && mine.current.has(floor.id),
+      ) ?? null,
+    [floors],
+  );
+  const frame = useMemo(() => frameOf(visible), [visible]);
+  const placed = useMemo(() => placeFloors(visible, frame), [visible, frame]);
   const ready = serverKeys || Boolean(keys.anthropic && keys.fal);
 
   /** How much each tile rides up over the one below it. */
@@ -75,8 +98,10 @@ export default function Tower() {
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error ?? "Could not start that floor.");
-        setFloors((current) => [...current, data.floor as Floor]);
-        setNewest((data.floor as Floor).id);
+        const floor = data.floor as Floor;
+        mine.current.add(floor.id);
+        setFloors((current) => [...current, floor]);
+        setNewest(floor.id);
         return true;
       } catch (thrown) {
         setError(thrown instanceof Error ? thrown.message : "Could not start that floor.");
@@ -148,6 +173,51 @@ export default function Tower() {
     }, 8000);
     return () => clearInterval(timer);
   }, [pendingCount]);
+
+  /** Keeps the wreck: the condemned tile becomes part of the tower. */
+  const keepCondemned = useCallback(async (id: string) => {
+    setDeciding(true);
+    try {
+      const response = await fetch(`/api/floors/${id}`, { method: "PATCH" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error ?? "That floor could not be kept.");
+      setFloors((current) =>
+        current.map((floor) => (floor.id === id ? (data.floor as Floor) : floor)),
+      );
+      setNewest(id);
+    } catch (thrown) {
+      setError(thrown instanceof Error ? thrown.message : "That floor could not be kept.");
+    } finally {
+      setDeciding(false);
+    }
+  }, []);
+
+  /**
+   * Clears the wreck and hands the description back, with the panel reopened on
+   * it -- a refused theme usually wants an edit, not the same submission again.
+   */
+  const retryCondemned = useCallback(async (floor: Floor) => {
+    setDeciding(true);
+    try {
+      const response = await fetch(`/api/floors/${floor.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error ?? "That floor could not be cleared.");
+      }
+      mine.current.delete(floor.id);
+      setFloors((current) => current.filter((item) => item.id !== floor.id));
+      try {
+        localStorage.setItem("nextfloor.draft", floor.themePrompt);
+      } catch {
+        // Non-fatal: the panel just opens empty.
+      }
+      setReopen((count) => count + 1);
+    } catch (thrown) {
+      setError(thrown instanceof Error ? thrown.message : "That floor could not be cleared.");
+    } finally {
+      setDeciding(false);
+    }
+  }, []);
 
   const removeFloors = useCallback(async (ids: string[]) => {
     const removed: string[] = [];
@@ -260,7 +330,17 @@ export default function Tower() {
         serverKeys={serverKeys}
         showKeys={!serverKeys || forceKeys}
         local={local}
+        reopen={reopen}
       />
+
+      {condemned && (
+        <CondemnedDialog
+          floor={condemned}
+          busy={deciding}
+          onRetry={() => retryCondemned(condemned)}
+          onKeep={() => keepCondemned(condemned.id)}
+        />
+      )}
 
       <ZoomControl zoom={zoom} onChange={changeZoom} />
     </main>

@@ -24,6 +24,8 @@ interface Props {
   serverKeys: boolean;
   showKeys: boolean;
   local: boolean;
+  /** Bumped to reopen the dialog on the add pane, e.g. after a condemned floor. */
+  reopen?: number;
 }
 
 /**
@@ -47,9 +49,16 @@ export default function ControlPanel({
   serverKeys,
   showKeys,
   local,
+  reopen = 0,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [pane, setPane] = useState<Pane>("add");
+
+  useEffect(() => {
+    if (reopen === 0) return;
+    setPane("add");
+    setOpen(true);
+  }, [reopen]);
 
   useEffect(() => {
     if (!open) return;

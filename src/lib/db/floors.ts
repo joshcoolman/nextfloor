@@ -260,16 +260,43 @@ export interface DeleteResult {
  * The reference floor cannot be deleted. Every later tile was conditioned on
  * it, so removing it would leave the building with nothing to match against.
  */
-export async function deleteFloor(id: string): Promise<DeleteResult> {
+export async function deleteFloor(id: string, onlyDead = false): Promise<DeleteResult> {
   await ensureSchema();
   const { rows } = await pool().query<{ image_key: string | null; is_reference: boolean }>(
-    `delete from floors where id = $1 and not is_reference returning image_key, is_reference`,
-    [id],
+    `delete from floors
+      where id = $1 and not is_reference and ($2 = false or status = 'dead')
+      returning image_key, is_reference`,
+    [id, onlyDead],
   );
   if (rows[0]) return { deleted: true, imageKey: rows[0].image_key };
 
   const { rowCount } = await pool().query(`select 1 from floors where id = $1`, [id]);
   return rowCount
-    ? { deleted: false, imageKey: null, reason: "The reference floor holds the building together." }
+    ? {
+        deleted: false,
+        imageKey: null,
+        reason: onlyDead
+          ? "Only a condemned floor can be cleared."
+          : "The reference floor holds the building together.",
+      }
     : { deleted: false, imageKey: null, reason: "No such floor." };
+}
+
+/**
+ * Marks a condemned floor as one the visitor chose to keep.
+ *
+ * A dead floor is hidden by default: a refused or failed build is not part of
+ * the building unless someone decides it is. Keeping it is the only way a
+ * condemned storey appears in the tower, which is what makes finding one in
+ * the wild mean something.
+ */
+export async function keepFloor(id: string): Promise<Floor | null> {
+  await ensureSchema();
+  const { rows } = await pool().query<Row>(
+    `update floors set meta = coalesce(meta, '{}'::jsonb) || '{"kept": true}'::jsonb
+      where id = $1 and status = 'dead'
+      returning *`,
+    [id],
+  );
+  return rows[0] ? toFloor(rows[0]) : null;
 }
