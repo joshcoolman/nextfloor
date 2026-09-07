@@ -1,0 +1,59 @@
+/* Pinned bottom right, under the add-floor button: the elevator shafts are drawn
+   on the right of every tile, so the call panel belongs on that side. The zoom
+   stepper takes the left, and the building is centred between them. */
+.panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  background: var(--ground);
+  border: 1px solid var(--edge);
+}
+
+.row {
+  display: flex;
+  gap: 6px;
+}
+
+/* Circles with numbers. No bezels, no gradients: the metaphor is carried by the
+   arrangement, and anything more would be a skeuomorph competing with the art. */
+.call {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--ink-faint);
+  color: var(--ink-dim);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.call:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* The floor you are looking at. A lit lamp, not a selected control: the panel
+   reports where you are rather than remembering what you last pressed. */
+.call[data-lit] {
+  color: var(--ink);
+  border-color: var(--ink);
+  box-shadow: 0 0 9px rgba(255, 255, 255, 0.28);
+}
+
+/* A number with no floor behind it -- a gap in the building, or a position past
+   the top of it. Present so the panel stays a true map, and inert in every way:
+   no hover, no press, never lit. */
+.socket {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid #1e1e1e;
+}

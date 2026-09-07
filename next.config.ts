@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/**": ["./src/lib/prompts/**"],
   },
+  // The dev badge defaults to the bottom left, which is where the zoom stepper
+  // now lives. Dev-only, but it sits on the readout every time.
+  devIndicators: { position: "top-left" },
   experimental: {
     // Floor generation is a long single request: spec + image + one retry.
     proxyTimeout: 300_000,

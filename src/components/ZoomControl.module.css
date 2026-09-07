@@ -1,8 +1,8 @@
-/* Pinned bottom right, away from the rail: it belongs to the view, not to the
-   floor-making controls. */
+/* Pinned bottom left, opposite the elevator panel: it belongs to the view, not
+   to the floor-making controls. */
 .control {
   position: fixed;
-  right: 16px;
+  left: 16px;
   bottom: 16px;
   z-index: 20;
   display: flex;
