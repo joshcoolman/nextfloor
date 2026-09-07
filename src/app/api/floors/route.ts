@@ -1,6 +1,6 @@
 import { after, NextResponse } from "next/server";
 import { MissingKeyError, resolveKeys, serverKeysAvailable } from "@/lib/ai/keys";
-import { listFloors, reserveFloor, sweepStalePending } from "@/lib/db/floors";
+import { listFloors, parkReferenceTile, reserveFloor, sweepStalePending } from "@/lib/db/floors";
 import { isLocalRequest } from "@/lib/local";
 import { ensureBuilding, generateFloor } from "@/lib/pipeline";
 import { EFFORTS, type Effort } from "@/lib/ai/types";
@@ -13,12 +13,15 @@ export async function GET(request: Request) {
   // The static building raises itself on first visit; no keys, no generation.
   try {
     await ensureBuilding();
+    await parkReferenceTile();
     await sweepStalePending();
   } catch (error) {
     console.error("[nextfloor] could not raise the static building", error);
   }
   return NextResponse.json({
-    floors: await listFloors(),
+    // The reference tile is the model's example, not a storey. Serving it would
+    // put an unnumbered arcade in the tower and hold floor 1 against being built.
+    floors: (await listFloors()).filter((floor) => !floor.isReference),
     serverKeys: serverKeysAvailable(),
     local: isLocalRequest(request),
   });
