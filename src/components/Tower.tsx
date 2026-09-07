@@ -365,21 +365,24 @@ export default function Tower() {
         </p>
       )}
 
-      <ControlPanel
-        floors={floors}
-        busy={busy}
-        pending={pendingCount}
-        ready={ready}
-        error={error}
-        onSubmit={addFloor}
-        onDelete={removeFloors}
-        keys={keys}
-        onKeysChange={setKeys}
-        serverKeys={serverKeys}
-        showKeys={!serverKeys || forceKeys}
-        local={local}
-        reopen={reopen}
-      />
+      <div className={styles.elevatorControls} data-controls>
+        <ControlPanel
+          floors={floors}
+          busy={busy}
+          pending={pendingCount}
+          ready={ready}
+          error={error}
+          onSubmit={addFloor}
+          onDelete={removeFloors}
+          keys={keys}
+          onKeysChange={setKeys}
+          serverKeys={serverKeys}
+          showKeys={!serverKeys || forceKeys}
+          local={local}
+          reopen={reopen}
+        />
+        <ElevatorPanel floors={visible} />
+      </div>
 
       {condemned && (
         <CondemnedDialog
@@ -390,7 +393,6 @@ export default function Tower() {
         />
       )}
 
-      <ElevatorPanel floors={visible} />
       <ZoomControl zoom={zoom} onChange={changeZoom} />
     </main>
   );

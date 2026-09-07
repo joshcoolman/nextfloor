@@ -80,15 +80,24 @@
   border-color: var(--danger);
 }
 
-/* Secondary controls, tucked under the add button rather than in a rail that
-   permanently covers a slice of the building. */
-.cluster {
+/* Primary desktop controls share one top-right stack so the add action stays
+   aligned with the elevator panel as the building grows. */
+.elevatorControls {
   position: fixed;
   top: 16px;
   right: 16px;
   z-index: 30;
-  top: 84px;
-  width: 190px;
+  display: flex;
+  width: 166px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .elevatorControls {
+    position: static;
+    width: auto;
+  }
 }
 
 .empty {
