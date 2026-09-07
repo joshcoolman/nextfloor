@@ -139,12 +139,14 @@ test("reveal shows the uncovered floor's literal original prompt", async ({ page
     expect(panel!.x).toBeCloseTo(eye!.x + eye!.width + 12, 0);
     expect(panel!.y).toBeCloseTo(eye!.y, 0);
   }
-  if (isMobile) await page.getByRole("button", { name: "Close floor prompt" }).click();
-  else await page.keyboard.press("Escape");
+  if (isMobile) {
+    const tile = await page.locator("#floor-30").boundingBox();
+    await page.touchscreen.tap(195, tile!.y + tile!.height - 10);
+  } else await page.getByRole("button", { name: "Restore Room floor-30", exact: true }).click();
   await expect(card).toHaveCount(0);
 });
 
-test("outside clicks and camera movement dismiss reveals, but card clicks do not", async ({ page, isMobile }) => {
+test("reveal stays open and its card leaves the viewport with the floor", async ({ page, isMobile }) => {
   await mockBuilding(page);
   await page.goto("/");
   await expect(page.locator('[aria-busy="false"]')).toBeVisible();
@@ -160,30 +162,34 @@ test("outside clicks and camera movement dismiss reveals, but card clicks do not
   await expect(card).toBeVisible();
   if (isMobile) await page.touchscreen.tap(20, 100);
   else await page.mouse.click(20, 100);
-  await expect(card).toHaveCount(0);
-  await open();
-  await expect(card).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(card).toHaveCount(1);
   if (!isMobile) {
     await page.mouse.move(100, 500);
     await page.mouse.down();
     await page.mouse.move(100, 450, { steps: 8 });
     await page.mouse.up();
-    await expect(card).toHaveCount(0);
-    await page.getByRole("button", { name: "Go to 30", exact: true }).click();
-    await open();
-    await expect(card).toBeVisible();
+    await expect(card).toHaveCount(1);
     await page.mouse.move(100, 400);
     await page.mouse.wheel(0, 50);
+    await expect(card).toHaveCount(1);
+    await page.getByRole("button", { name: "Go to 2", exact: true }).click();
+    await expect.poll(async () => (await card.boundingBox())!.y).toBeLessThan(-300);
+    await expect(page.getByRole("button", { name: "Restore Room floor-30", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await page.getByRole("button", { name: "Go to 30", exact: true }).click();
+    await expect(card).toBeInViewport();
+    await page.getByRole("button", { name: "Go to 29", exact: true }).click();
+    await page.getByRole("button", { name: "Reveal Room floor-29", exact: true }).click();
     await expect(card).toHaveCount(0);
-    await open();
+    const nextCard = page.getByRole("complementary", { name: "Original prompt for floor 29" });
+    await expect(nextCard).toHaveCount(1);
+    await page.getByRole("button", { name: "Restore Room floor-29", exact: true }).click();
+    await expect(nextCard).toHaveCount(0);
   } else {
-    await page.evaluate(() => window.scrollBy(0, 40));
-    await expect(card).toHaveCount(0);
-    await open();
+    await page.evaluate(() => window.scrollBy(0, 800));
+    await expect(card).toHaveCount(1);
+    await expect.poll(async () => (await card.boundingBox())!.y).toBeLessThan(-300);
   }
-  await page.getByRole("button", { name: "Add a floor", exact: true }).click();
-  await expect(card).toHaveCount(0);
-  await expect(page.getByLabel("DESCRIBE ROOM")).toBeVisible();
 });
 
 test("suggestions rotate, fill drafts, hide while editing, and never submit", async ({ page, isMobile }) => {
