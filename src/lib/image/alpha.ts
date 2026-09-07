@@ -42,10 +42,8 @@ export async function restoreAlpha(input: Buffer): Promise<Buffer> {
    * and both defeated it outright -- the fill never started and the tile would
    * have shipped as an opaque rectangle.
    *
-   * Several samples, because a checkerboard has two colours and a gradient has
-   * many. Corners and edge midpoints are all outside the artwork; a sample that
-   * happens to land on the building only widens what counts as background along
-   * an edge the fill already reaches.
+   * Four samples, one per corner, because a transparency checkerboard has two
+   * colours and only some corners see each.
    */
   const samples: Array<[number, number, number]> = [];
   const addSample = (x: number, y: number) => {
@@ -59,18 +57,22 @@ export async function restoreAlpha(input: Buffer): Promise<Buffer> {
     );
     if (!known) samples.push(next);
   };
-  // Inset by a pixel: encoders and resamplers occasionally leave the outermost
-  // row slightly off, and a sample taken there describes an artifact rather than
-  // the background.
+  // Corners only, inset by a pixel.
+  //
+  // Sampling all round the border looks more thorough and is worse: the building
+  // reaches the image edge on plenty of tiles -- 142 border pixels of artwork on
+  // one, 86 on another -- so an edge sample lands on the floor itself and admits
+  // a building colour as background, which the fill then eats wherever it can
+  // reach. The corners are the one place the artwork never is: measured across
+  // all eighteen tiles in the building, zero have artwork in a corner.
+  //
+  // The inset is for encoders and resamplers, which occasionally leave the
+  // outermost row slightly off -- a sample there describes an artifact.
   const inset = 1;
-  const cx = (i: number) => Math.min(width - 1 - inset, Math.max(inset, Math.round((i * width) / 8)));
-  const cy = (i: number) => Math.min(height - 1 - inset, Math.max(inset, Math.round((i * height) / 8)));
-  for (let i = 0; i <= 8; i += 1) {
-    addSample(cx(i), inset);
-    addSample(cx(i), height - 1 - inset);
-    addSample(inset, cy(i));
-    addSample(width - 1 - inset, cy(i));
-  }
+  addSample(inset, inset);
+  addSample(width - 1 - inset, inset);
+  addSample(inset, height - 1 - inset);
+  addSample(width - 1 - inset, height - 1 - inset);
 
   /**
    * Colour decides what background looks like; connectivity decides what is
