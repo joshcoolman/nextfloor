@@ -51,3 +51,9 @@
   color: #2e2e2e;
   cursor: not-allowed;
 }
+
+@media (max-width: 640px) {
+  .control {
+    display: none;
+  }
+}
