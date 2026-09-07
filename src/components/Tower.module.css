@@ -178,7 +178,9 @@
 
   .viewport {
     position: static;
-    overflow: visible;
+    width: 100%;
+    min-width: 0;
+    overflow: auto;
     cursor: auto;
     touch-action: auto;
     user-select: auto;
@@ -190,6 +192,7 @@
 
   .stack {
     position: relative;
+    width: max-content;
     transform: none;
     will-change: auto;
   }

@@ -1,40 +1,62 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import styles from "./elevator-arrival.module.css";
 
-export default function ElevatorArrival({ ordinals, ready, error, onRetry, onDone }: {
+export default function ElevatorArrival({ ordinals, hasRoof, ready, error, onRetry, onReveal, onDone }: {
   ordinals: number[];
+  hasRoof: boolean;
   ready: boolean;
   error: string | null;
   onRetry: () => void;
   onDone: () => void;
+  onReveal: () => void;
 }) {
-  const [progress, setProgress] = useState(0);
+  const [current, setCurrent] = useState(0);
   const [leaving, setLeaving] = useState(false);
+  const currentRef = useRef(current);
+  currentRef.current = current;
+  const highest = Math.max(0, ...ordinals);
+  const present = new Set(ordinals);
+  const rows = Array.from({ length: Math.ceil(highest / 4) }, (_, row) =>
+    Array.from({ length: 4 }, (_, column) => row * 4 + column + 1)).reverse();
   useEffect(() => {
     if (error || ready) return;
-    const timer = setInterval(() => setProgress((value) => value + (0.9 - value) * 0.12), 180);
+    const timer = setInterval(() => setCurrent((value) => Math.min(Math.max(0, highest - 1), value + 1)), 700);
     return () => clearInterval(timer);
-  }, [error, ready]);
+  }, [error, ready, highest]);
   useEffect(() => {
     if (!ready || error) return;
-    setProgress(1);
-    setLeaving(true);
-    const timer = setTimeout(onDone, window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 400);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { onDone(); return; }
+    const from = currentRef.current;
+    const started = performance.now();
+    const duration = Math.min(650, Math.max(100, (highest - from) * 45));
+    let frame = 0;
+    let pause: ReturnType<typeof setTimeout>;
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - started) / duration);
+      setCurrent(from + Math.floor((highest - from) * progress));
+      if (progress < 1) frame = requestAnimationFrame(tick);
+      else pause = setTimeout(() => setLeaving(true), 100);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => { cancelAnimationFrame(frame); clearTimeout(pause); };
+  }, [ready, error, onDone, highest]);
+  useEffect(() => {
+    if (!leaving) return;
+    onReveal();
+    const timer = setTimeout(onDone, 400);
     return () => clearTimeout(timer);
-  }, [ready, error, onDone]);
-  const stops = ["B1", ...ordinals.map(String)];
-  const current = Math.min(stops.length - 1, Math.floor(progress * (stops.length - 1)));
-  // A moving window stays compact even when the building has thousands of floors.
-  const start = Math.max(0, Math.min(current - 3, stops.length - 8));
+  }, [leaving, onDone, onReveal]);
   return (
-    <div className={styles.overlay} data-leaving={leaving || undefined}>
+    <div className={styles.overlay} data-elevator-arrival data-leaving={leaving || undefined}>
       <div className={styles.panel}>
         <div className={styles.stops} aria-hidden="true">
-          {stops.slice(start, start + 8).reverse().map((stop) => (
-            <span key={stop} className={styles.stop} data-lit={stop === stops[current] || undefined}>{stop}</span>
-          ))}
+          {hasRoof && <span className={styles.stop}>R</span>}
+          {rows.map((row) => <div className={styles.row} data-floor-row key={row[0]}>
+            {row.map((ordinal) => <span key={ordinal} className={styles.stop} data-empty={!present.has(ordinal) || undefined} data-lit={ordinal === current || undefined}>{ordinal <= highest ? ordinal : ""}</span>)}
+          </div>)}
+          <span className={styles.stop} data-lit={current === 0 || undefined}>B1</span>
         </div>
         <p role={error ? "alert" : "status"}>{error ?? "Loading"}</p>
         {error && <button onClick={onRetry}>TRY AGAIN</button>}

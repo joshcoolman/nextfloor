@@ -50,6 +50,8 @@ export default function Tower() {
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [positioned, setPositioned] = useState(false);
   const [arrived, setArrived] = useState(false);
+  const [revealing, setRevealing] = useState(false);
+  const revealBuilding = useCallback(() => setRevealing(true), []);
   const finishArrival = useCallback(() => setArrived(true), []);
   const retryArrival = useCallback(() => { setLoadError(null); setLoadAttempt((n) => n + 1); }, []);
   const [floors, setFloors] = useState<Floor[]>([]);
@@ -205,6 +207,7 @@ export default function Tower() {
       setCamera((current) => constrain(current.scale, current.x,
         target ? height / 2 - (target.top + frame.height * FLOOR_ANCHOR) * current.scale : 0));
     } else if (target) {
+      if (viewport.current) viewport.current.scrollLeft = Math.max(0, (viewport.current.scrollWidth - viewport.current.clientWidth) / 2);
       document.getElementById(target.floor.id)?.scrollIntoView({ block: "center", behavior: "instant" });
     }
     setPositioned(true);
@@ -467,7 +470,7 @@ export default function Tower() {
   const peekOpacity = Math.min(1, Math.max(0, (camera.scale - 0.32) / (0.55 - 0.32)));
 
   return (
-    <main className={styles.page} aria-busy={!arrived} data-arriving={!arrived && images.ready || undefined}>
+    <main className={styles.page} aria-busy={!arrived} data-arriving={!arrived && revealing || undefined}>
       <div
         ref={viewport}
         inert={!arrived}
@@ -648,7 +651,7 @@ export default function Tower() {
 
       {arrived && <ZoomControl zoom={camera.scale} onChange={changeZoom} />}
       {arrived && revealed?.kind === "floor" && <FloorPrompt floor={revealed} onClose={closePrompt} />}
-      {!arrived && <ElevatorArrival ordinals={arrivalOrdinals} ready={images.ready} error={loadError} onRetry={retryArrival} onDone={finishArrival} />}
+      {!arrived && <ElevatorArrival ordinals={arrivalOrdinals} hasRoof={visible.some((floor) => floor.kind === "roof")} ready={images.ready} error={loadError} onRetry={retryArrival} onReveal={revealBuilding} onDone={finishArrival} />}
     </main>
   );
 }

@@ -12,13 +12,15 @@ export function useTowerImages(placed: PlacedFloor[], pitch: number, scale: numb
     const measure = () => {
       const near: string[] = [];
       const inView: string[] = [];
-      for (const { floor } of placed) {
+      const first = placed[0] && document.getElementById(placed[0].floor.id)?.getBoundingClientRect();
+      for (const { floor, top } of placed) {
         if (floor.status === "dead") continue;
-        const rect = document.getElementById(floor.id)?.getBoundingClientRect();
-        if (!rect) continue;
+        if (!first) continue;
+        const tileTop = first.top + top * scale;
+        const tileBottom = tileTop + first.height;
         const key = `${floor.id}:${floor.status}`;
-        if (rect.bottom > -2 * pitch * scale && rect.top < window.innerHeight + 2 * pitch * scale) near.push(key);
-        if (rect.bottom > 0 && rect.top < window.innerHeight) inView.push(key);
+        if (tileBottom > -2 * pitch * scale && tileTop < window.innerHeight + 2 * pitch * scale) near.push(key);
+        if (tileBottom > 0 && tileTop < window.innerHeight) inView.push(key);
       }
       setRequested((previous) => near.every((key) => previous.has(key)) ? previous : new Set([...previous, ...near]));
       setRequired((previous) => previous?.join() === inView.join() ? previous : inView);
