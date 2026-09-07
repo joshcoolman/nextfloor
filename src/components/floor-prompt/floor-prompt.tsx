@@ -44,7 +44,7 @@ export default function FloorPrompt({ floor, onClose }: { floor: Floor; onClose:
     };
   }, [onClose]);
   return (
-    <aside ref={card} className={styles.card} aria-label={`Original prompt for floor ${floor.ordinal}`} data-controls>
+    <aside ref={card} className={styles.card} aria-label={`Original prompt for floor ${floor.ordinal}`} data-controls data-floor-prompt>
       <div className={styles.heading}>
         <span>FLOOR {floor.ordinal}</span>
         <button ref={close} onClick={onClose} aria-label="Close floor prompt">CLOSE</button>
