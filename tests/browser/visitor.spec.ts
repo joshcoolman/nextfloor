@@ -144,7 +144,7 @@ test("reveal shows the uncovered floor's literal original prompt", async ({ page
   await expect(card).toHaveCount(0);
 });
 
-test("outside clicks dismiss reveals, but card clicks and desktop drags do not", async ({ page, isMobile }) => {
+test("outside clicks and camera movement dismiss reveals, but card clicks do not", async ({ page, isMobile }) => {
   await mockBuilding(page);
   await page.goto("/");
   await expect(page.locator('[aria-busy="false"]')).toBeVisible();
@@ -168,7 +168,18 @@ test("outside clicks dismiss reveals, but card clicks and desktop drags do not",
     await page.mouse.down();
     await page.mouse.move(100, 450, { steps: 8 });
     await page.mouse.up();
+    await expect(card).toHaveCount(0);
+    await page.getByRole("button", { name: "Go to 30", exact: true }).click();
+    await open();
     await expect(card).toBeVisible();
+    await page.mouse.move(100, 400);
+    await page.mouse.wheel(0, 50);
+    await expect(card).toHaveCount(0);
+    await open();
+  } else {
+    await page.evaluate(() => window.scrollBy(0, 40));
+    await expect(card).toHaveCount(0);
+    await open();
   }
   await page.getByRole("button", { name: "Add a floor", exact: true }).click();
   await expect(card).toHaveCount(0);
