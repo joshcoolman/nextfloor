@@ -1,18 +1,44 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import styles from "./Tower.module.css";
 import CondemnedDialog from "./CondemnedDialog";
 import ControlPanel from "./ControlPanel";
 import ElevatorPanel from "./ElevatorPanel";
 import DeadFloor from "./DeadFloor";
-import ZoomControl, { DEFAULT_ZOOM, ZOOM_STEPS } from "./ZoomControl";
+import ZoomControl, { DEFAULT_ZOOM } from "./ZoomControl";
 import { useKeys } from "@/hooks/useKeys";
-import { frameOf, placeFloors } from "@/lib/building/layout";
+import { frameOf, placeFloors, towerHeight } from "@/lib/building/layout";
+import { TILE } from "@/lib/building/styleGuide";
 import type { Effort, Floor } from "@/lib/ai/types";
 
 /** Faint rather than gone: the lifted floor still reads as a floor. */
 const PEEK_OPACITY = 0.2;
+const MIN_ZOOM = 0.2;
+const MAX_ZOOM = 1;
+const DESKTOP_QUERY = "(min-width: 641px)";
+const FLOOR_ANCHOR = 1 - TILE.pitchRatio / 2;
+
+interface Camera {
+  scale: number;
+  x: number;
+  y: number;
+}
+
+type TowerStyle = CSSProperties & {
+  "--control-scale": number;
+  "--peek-opacity": number;
+};
+
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M2.5 12s3.5-5.5 9.5-5.5 9.5 5.5 9.5 5.5-3.5 5.5-9.5 5.5S2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="2.5" />
+    </svg>
+  );
+}
 
 export default function Tower() {
   const [floors, setFloors] = useState<Floor[]>([]);
@@ -24,7 +50,14 @@ export default function Tower() {
   const pendingCount = floors.filter((floor) => floor.status === "pending").length;
   const [error, setError] = useState<string | null>(null);
   const [newest, setNewest] = useState<string | null>(null);
-  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
+  const [camera, setCamera] = useState<Camera>({ scale: DEFAULT_ZOOM, x: 0, y: 0 });
+  const [desktop, setDesktop] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(0);
+  const viewport = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+  const dragged = useRef(false);
+  const cameraRef = useRef(camera);
+  const travel = useRef(0);
 
   const [reopen, setReopen] = useState(0);
   /** The floor currently held out of the way so the one below it can be seen. */
@@ -57,29 +90,79 @@ export default function Tower() {
 
   /** How much each tile rides up over the one below it. */
   const overlap = frame.height - frame.pitch;
-
+  const contentHeight = towerHeight(placed.length, frame);
 
   useEffect(() => {
     setForceKeys(new URLSearchParams(window.location.search).has("keys"));
   }, []);
 
   useEffect(() => {
+    cameraRef.current = camera;
+  }, [camera]);
+
+  useEffect(() => () => cancelAnimationFrame(travel.current), []);
+
+  useEffect(() => {
+    const query = window.matchMedia(DESKTOP_QUERY);
+    const update = () => setDesktop(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
     try {
       const stored = Number(localStorage.getItem("nextfloor.zoom"));
-      if (stored > 0) setZoom(stored);
+      if (stored >= MIN_ZOOM && stored <= MAX_ZOOM) {
+        setCamera((current) => ({ ...current, scale: stored }));
+      }
     } catch {
       // A blocked store just means the default zoom.
     }
   }, []);
 
-  const changeZoom = useCallback((next: number) => {
-    setZoom(next);
+  const constrain = useCallback(
+    (scale: number, x: number, y: number): Camera => {
+      const box = viewport.current?.getBoundingClientRect();
+      if (!box) return { scale, x, y };
+      const width = frame.width * scale;
+      const height = contentHeight * scale;
+      return {
+        scale,
+        x: width <= box.width ? (box.width - width) / 2 : Math.min(0, Math.max(box.width - width, x)),
+        y: height <= box.height ? (box.height - height) / 2 : Math.min(0, Math.max(box.height - height, y)),
+      };
+    },
+    [contentHeight, frame.width],
+  );
+
+  const rememberZoom = useCallback((scale: number) => {
     try {
-      localStorage.setItem("nextfloor.zoom", String(next));
+      localStorage.setItem("nextfloor.zoom", String(scale));
     } catch {
       // Non-fatal: the zoom still applies for this session.
     }
   }, []);
+
+  const changeZoom = useCallback(
+    (next: number, clientX?: number, clientY?: number) => {
+      const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
+      setCamera((current) => {
+        const box = viewport.current?.getBoundingClientRect();
+        if (!box) return { ...current, scale };
+        const anchorX = (clientX ?? box.left + box.width / 2) - box.left;
+        const anchorY = (clientY ?? box.top + box.height / 2) - box.top;
+        const ratio = scale / current.scale;
+        return constrain(
+          scale,
+          anchorX - (anchorX - current.x) * ratio,
+          anchorY - (anchorY - current.y) * ratio,
+        );
+      });
+      rememberZoom(scale);
+    },
+    [constrain, rememberZoom],
+  );
 
   useEffect(() => {
     fetch("/api/floors")
@@ -119,54 +202,109 @@ export default function Tower() {
     [headers],
   );
 
-  /**
-   * Zoom by keyboard and modifier-wheel rather than by clicking buttons.
-   *
-   * The wheel listener must be non-passive: ctrl/cmd + wheel is how browsers
-   * report pinch zoom, and only preventDefault stops the whole page zooming
-   * instead of the building. Cmd/ctrl + shift + arrows is the keyboard route --
-   * plain + and - belong to the browser and cannot be taken.
-   */
+  /** Plain wheel zooms the desktop stage around the pointer. Controls retain
+   * their ordinary wheel behavior because they live outside the viewport. */
   useEffect(() => {
-    const step = (direction: 1 | -1) => {
-      setZoom((current) => {
-        const index = ZOOM_STEPS.indexOf(current);
-        const from = index === -1 ? ZOOM_STEPS.indexOf(DEFAULT_ZOOM) : index;
-        const next = ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, from + direction))];
-        try {
-          localStorage.setItem("nextfloor.zoom", String(next));
-        } catch {
-          // Non-fatal.
-        }
-        return next;
+    const element = viewport.current;
+    if (!element || !desktop) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      cancelAnimationFrame(travel.current);
+      setCamera((current) => {
+        const box = element.getBoundingClientRect();
+        const anchorX = event.clientX - box.left;
+        const anchorY = event.clientY - box.top;
+        const scale = Math.min(
+          MAX_ZOOM,
+          Math.max(MIN_ZOOM, current.scale * Math.exp(-event.deltaY * 0.0015)),
+        );
+        const ratio = scale / current.scale;
+        rememberZoom(scale);
+        return constrain(
+          scale,
+          anchorX - (anchorX - current.x) * ratio,
+          anchorY - (anchorY - current.y) * ratio,
+        );
       });
     };
+    element.addEventListener("wheel", onWheel, { passive: false });
+    return () => element.removeEventListener("wheel", onWheel);
+  }, [constrain, desktop, rememberZoom]);
 
-    const onWheel = (event: WheelEvent) => {
-      if (!event.ctrlKey && !event.metaKey) return;
-      if ((event.target as HTMLElement)?.closest("[data-controls]")) return;
-      event.preventDefault();
-      step(event.deltaY < 0 ? 1 : -1);
+  const travelTo = useCallback((y: number) => {
+    cancelAnimationFrame(travel.current);
+    const from = cameraRef.current.y;
+    const distance = Math.abs(y - from);
+    if (distance < 1) return;
+    const duration = Math.min(700, Math.max(280, distance * 0.18));
+    const started = performance.now();
+
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - started) / duration);
+      const eased =
+        progress < 0.5
+          ? 4 * progress * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+      setCamera((current) => ({ ...current, y: from + (y - from) * eased }));
+      if (progress < 1) travel.current = requestAnimationFrame(tick);
     };
 
-    const onKey = (event: KeyboardEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || !event.shiftKey) return;
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        step(1);
-      } else if (event.key === "ArrowDown") {
-        event.preventDefault();
-        step(-1);
-      }
-    };
-
-    window.addEventListener("wheel", onWheel, { passive: false });
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("wheel", onWheel);
-      window.removeEventListener("keydown", onKey);
-    };
+    travel.current = requestAnimationFrame(tick);
   }, []);
+
+  /** Keep the camera legal after resizing, adding floors, or changing artwork. */
+  useEffect(() => {
+    if (!desktop) return;
+    const reframe = () => {
+      setViewportHeight(viewport.current?.getBoundingClientRect().height ?? 0);
+      setCamera((current) => constrain(current.scale, current.x, current.y));
+    };
+    reframe();
+    window.addEventListener("resize", reframe);
+    return () => window.removeEventListener("resize", reframe);
+  }, [constrain, desktop]);
+
+  const focusFloor = useCallback(
+    (floor: Floor) => {
+      if (!desktop) {
+        document.getElementById(floor.id)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      const item = placed.find((candidate) => candidate.floor.id === floor.id);
+      const box = viewport.current?.getBoundingClientRect();
+      if (!item || !box) return;
+      const current = cameraRef.current;
+      const target = constrain(
+        current.scale,
+        current.x,
+        box.height / 2 - (item.top + frame.height * FLOOR_ANCHOR) * current.scale,
+      );
+      travelTo(target.y);
+    },
+    [constrain, desktop, frame.height, placed, travelTo],
+  );
+
+  const activeFloorId = useMemo(() => {
+    if (!desktop || placed.length === 0 || viewportHeight === 0) return null;
+    const scaledHeight = contentHeight * camera.scale;
+    if (scaledHeight > viewportHeight) {
+      if (camera.y >= -1) return placed[0].floor.id;
+      if (camera.y + scaledHeight <= viewportHeight + 1) {
+        return placed[placed.length - 1].floor.id;
+      }
+    }
+    const middle = (viewportHeight / 2 - camera.y) / camera.scale;
+    let closest = placed[0];
+    let distance = Infinity;
+    for (const item of placed) {
+      const gap = Math.abs(item.top + frame.height * FLOOR_ANCHOR - middle);
+      if (gap < distance) {
+        closest = item;
+        distance = gap;
+      }
+    }
+    return closest.floor.id;
+  }, [camera.scale, camera.y, contentHeight, desktop, frame.height, placed, viewportHeight]);
 
   /** Poll while anything is under construction, and stop when nothing is. */
   useEffect(() => {
@@ -263,20 +401,88 @@ export default function Tower() {
     [placed],
   );
 
+  const peekControl = (index: number) => {
+    const covered = placed[index - 1]?.floor;
+    if (!covered) return null;
+    const active = peeked === covered.id;
+    return (
+      <button
+        className={styles.peek}
+        data-active={active || undefined}
+        aria-label={`${active ? "Restore" : "Reveal"} ${placed[index].floor.displayName}`}
+        aria-pressed={active}
+        title={`${active ? "Restore" : "Reveal"} full floor`}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={() => peek(index)}
+      >
+        <EyeIcon />
+      </button>
+    );
+  };
+
   /** A new floor lands at the top of the tower; go and look at it. */
   useEffect(() => {
     if (!newest) return;
-    document.getElementById(newest)?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [newest, placed.length]);
+    const floor = visible.find((item) => item.id === newest);
+    if (floor) focusFloor(floor);
+  }, [focusFloor, newest, placed.length, visible]);
+
+  const peekOpacity = Math.min(1, Math.max(0, (camera.scale - 0.32) / (0.55 - 0.32)));
 
   return (
     <main className={styles.page}>
-      {/*
-        CSS zoom rather than a transform: zoom takes part in layout, so the page
-        height shrinks with it and ordinary scrolling still works. A transform
-        would leave the layout box at full size and leave phantom scroll area.
-      */}
-      <div className={styles.stack} style={{ zoom }}>
+      <div
+        ref={viewport}
+        className={styles.viewport}
+        onPointerDown={(event) => {
+          if (!desktop || event.button !== 0) return;
+          cancelAnimationFrame(travel.current);
+          drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+          dragged.current = false;
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          const start = drag.current;
+          if (!start || start.pointerId !== event.pointerId) return;
+          const dx = event.clientX - start.x;
+          const dy = event.clientY - start.y;
+          if (Math.abs(dx) + Math.abs(dy) > 2) dragged.current = true;
+          drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+          setCamera((current) => constrain(current.scale, current.x + dx, current.y + dy));
+        }}
+        onPointerUp={(event) => {
+          if (drag.current?.pointerId !== event.pointerId) return;
+          drag.current = null;
+          event.currentTarget.releasePointerCapture(event.pointerId);
+        }}
+        onPointerCancel={() => {
+          drag.current = null;
+          dragged.current = false;
+        }}
+        onClickCapture={(event) => {
+          if (!dragged.current) return;
+          event.stopPropagation();
+          dragged.current = false;
+        }}
+      >
+      <div
+        className={styles.stack}
+        style={(
+          desktop
+            ? {
+                width: frame.width,
+                height: contentHeight,
+                transform: `translate3d(${camera.x}px, ${camera.y}px, 0) scale(${camera.scale})`,
+                "--control-scale": 1 / camera.scale,
+                "--peek-opacity": peekOpacity,
+              }
+            : {
+                zoom: camera.scale,
+                "--control-scale": 1 / camera.scale,
+                "--peek-opacity": peekOpacity,
+              }
+        ) as TowerStyle}
+      >
         {placed.map((item, index) => {
           const style = {
             width: frame.width,
@@ -309,7 +515,9 @@ export default function Tower() {
                 className={`${styles.tile} ${styles.construction} ${styles.settle}`}
                 style={tileStyle}
                 title={item.floor.themePrompt}
-                onClick={() => peek(index)}
+                onClick={() => {
+                  if (!desktop) peek(index);
+                }}
               >
                 <img
                   src="/construction-floor.png"
@@ -319,6 +527,7 @@ export default function Tower() {
                   draggable={false}
                 />
                 <span className={styles.scan} />
+                {peekControl(index)}
               </figure>
             );
           }
@@ -329,10 +538,8 @@ export default function Tower() {
               id={item.floor.id}
               className={`${styles.tile} ${item.floor.id === newest ? styles.settle : ""}`}
               style={tileStyle}
-              // A click on the REMOVE button must not also lift a floor.
               onClick={(event) => {
-                if ((event.target as HTMLElement).closest("button")) return;
-                peek(index);
+                if (!desktop && !(event.target as HTMLElement).closest("button")) peek(index);
               }}
             >
               {item.floor.status === "dead" ? (
@@ -354,6 +561,7 @@ export default function Tower() {
                   REMOVE
                 </button>
               )}
+              {peekControl(index)}
             </figure>
           );
         })}
@@ -364,6 +572,7 @@ export default function Tower() {
           No building yet. Add artwork to public/ or check that DATABASE_URL is set.
         </p>
       )}
+      </div>
 
       <div className={styles.elevatorControls} data-controls>
         <ControlPanel
@@ -381,7 +590,11 @@ export default function Tower() {
           local={local}
           reopen={reopen}
         />
-        <ElevatorPanel floors={visible} />
+        <ElevatorPanel
+          floors={visible}
+          activeFloorId={activeFloorId}
+          onSelect={focusFloor}
+        />
       </div>
 
       {condemned && (
@@ -393,7 +606,7 @@ export default function Tower() {
         />
       )}
 
-      <ZoomControl zoom={zoom} onChange={changeZoom} />
+      <ZoomControl zoom={camera.scale} onChange={changeZoom} />
     </main>
   );
 }

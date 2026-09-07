@@ -1,25 +1,33 @@
 .page {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  /* "safe" matters: when the building is wider than the space left beside the
-     rail, plain centring overflows equally in both directions and the left edge
-     becomes unreachable by scrolling. safe centring falls back to start. */
-  align-items: safe center;
-  padding: 0 0 64px;
+  height: 100vh;
+  overflow: hidden;
   background: var(--ground);
 }
 
-/* The stack is the page. Tiles sit at their natural size and the window
-   scrolls, rather than a viewport rig scaling them to fit. */
+.viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.viewport:active {
+  cursor: grabbing;
+}
+
+/* The DOM tower is the movable content of the desktop viewport. */
 .stack {
   display: flex;
   flex-direction: column;
   align-items: center;
-  /* Its own stacking context: tile z-indexes climb with the tower, and without
-     this a tall enough building would eventually outrank the controls. */
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   z-index: 0;
+  transform-origin: 0 0;
+  will-change: transform;
 }
 
 .tile {
@@ -80,6 +88,48 @@
   border-color: var(--danger);
 }
 
+/* The visible bottom edge is the floor's nearest corner. Keeping the reveal
+   control there makes it available without turning the whole floor into a
+   click target that competes with panning. */
+.peek {
+  position: absolute;
+  right: 31%;
+  bottom: 1px;
+  z-index: 3;
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--ink-faint);
+  border-radius: 50%;
+  color: var(--ink-dim);
+  background: var(--ground);
+  opacity: var(--peek-opacity);
+  transform: scale(var(--control-scale)) translate(11px, 5px);
+  transform-origin: bottom right;
+  transition: opacity 80ms linear, color 120ms ease, border-color 120ms ease,
+    background 120ms ease;
+}
+
+.peek svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.peek:hover,
+.peek[data-active] {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--ground);
+}
+
+.peek[data-active] {
+  box-shadow: 0 0 9px rgba(255, 255, 255, 0.28);
+}
+
 /* Primary desktop controls share one top-right stack so the add action stays
    aligned with the elevator panel as the building grows. */
 .elevatorControls {
@@ -101,10 +151,54 @@
 }
 
 .empty {
-  padding: 120px 24px;
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
   color: var(--ink-faint);
   text-align: center;
   line-height: 1.7;
+}
+
+@media (max-width: 640px) {
+  .page {
+    min-height: 100vh;
+    height: auto;
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+    align-items: safe center;
+    padding: 0 0 64px;
+  }
+
+  .viewport {
+    position: static;
+    overflow: visible;
+    cursor: auto;
+    touch-action: auto;
+    user-select: auto;
+  }
+
+  .viewport:active {
+    cursor: auto;
+  }
+
+  .stack {
+    position: relative;
+    transform: none;
+    will-change: auto;
+  }
+
+  .peek {
+    display: none;
+  }
+
+  .empty {
+    position: static;
+    display: block;
+    padding: 120px 24px;
+  }
 }
 
 /* The floor under construction: a real tile in the stack, so the building
