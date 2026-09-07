@@ -10,10 +10,8 @@ import sharp from "sharp";
  * matching colours inside the artwork are never touched.
  */
 
-/** How far a pixel may differ from a background colour and still be background. */
-const TOLERANCE = 14;
-/** Max channel spread for a pixel to count as neutral grey. */
-const NEUTRAL = 10;
+/** How far a pixel may differ from a sampled background colour, per channel. */
+const TOLERANCE = 16;
 /** Below this, the tile already has usable transparency and is left alone. */
 const ALREADY_TRANSPARENT = 0.05;
 
@@ -32,27 +30,64 @@ export async function restoreAlpha(input: Buffer): Promise<Buffer> {
   }
   if (transparent / (width * height) > ALREADY_TRANSPARENT) return input;
 
-  const corner = [raw[0], raw[1], raw[2]];
-  let other: number[] | null = null;
-  for (let x = 1; x < Math.min(width, 200) && !other; x += 1) {
-    const i = x * 4;
-    if (Math.abs(raw[i] - corner[0]) > TOLERANCE) other = [raw[i], raw[i + 1], raw[i + 2]];
+  /**
+   * Sample the background rather than assume it.
+   *
+   * This is the magic wand: click outside the subject, small tolerance,
+   * contiguous. The colour is whatever is actually there.
+   *
+   * The previous version required the background to be neutral grey, which is
+   * true of a transparency checkerboard and of nothing else. A green background
+   * (11,32,26) and a sky-blue one (163,220,252) both came back from the model
+   * and both defeated it outright -- the fill never started and the tile would
+   * have shipped as an opaque rectangle.
+   *
+   * Several samples, because a checkerboard has two colours and a gradient has
+   * many. Corners and edge midpoints are all outside the artwork; a sample that
+   * happens to land on the building only widens what counts as background along
+   * an edge the fill already reaches.
+   */
+  const samples: Array<[number, number, number]> = [];
+  const addSample = (x: number, y: number) => {
+    const i = (y * width + x) * 4;
+    const next: [number, number, number] = [raw[i], raw[i + 1], raw[i + 2]];
+    const known = samples.some(
+      (s) =>
+        Math.abs(s[0] - next[0]) <= TOLERANCE &&
+        Math.abs(s[1] - next[1]) <= TOLERANCE &&
+        Math.abs(s[2] - next[2]) <= TOLERANCE,
+    );
+    if (!known) samples.push(next);
+  };
+  // Inset by a pixel: encoders and resamplers occasionally leave the outermost
+  // row slightly off, and a sample taken there describes an artifact rather than
+  // the background.
+  const inset = 1;
+  const cx = (i: number) => Math.min(width - 1 - inset, Math.max(inset, Math.round((i * width) / 8)));
+  const cy = (i: number) => Math.min(height - 1 - inset, Math.max(inset, Math.round((i * height) / 8)));
+  for (let i = 0; i <= 8; i += 1) {
+    addSample(cx(i), inset);
+    addSample(cx(i), height - 1 - inset);
+    addSample(inset, cy(i));
+    addSample(width - 1 - inset, cy(i));
   }
-  const second = other ?? corner;
 
-  // Resampling leaves blended pixels along every checker boundary. Matching only
-  // the two exact colours leaves those in place and they dam the flood fill, so
-  // anything neutral within the background's brightness range counts too.
-  const lo = Math.min(corner[0], second[0]) - TOLERANCE;
-  const hi = Math.max(corner[0], second[0]) + TOLERANCE;
-
+  /**
+   * Colour decides what background looks like; connectivity decides what is
+   * background. The fill only ever reaches pixels joined to the border, so a
+   * neon sign inside the floor that happens to match is never touched -- which
+   * is what makes keying on a saturated colour safe at all.
+   */
   const isBackground = (i: number) => {
     const r = raw[i];
     const g = raw[i + 1];
     const b = raw[i + 2];
-    if (Math.max(r, g, b) - Math.min(r, g, b) > NEUTRAL) return false;
-    const luma = (r + g + b) / 3;
-    return luma >= lo && luma <= hi;
+    return samples.some(
+      (s) =>
+        Math.abs(r - s[0]) <= TOLERANCE &&
+        Math.abs(g - s[1]) <= TOLERANCE &&
+        Math.abs(b - s[2]) <= TOLERANCE,
+    );
   };
 
   const seen = new Uint8Array(width * height);
