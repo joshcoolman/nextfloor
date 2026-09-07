@@ -161,6 +161,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
 
   const changeZoom = useCallback(
     (next: number, clientX?: number, clientY?: number) => {
+      closePrompt();
       cancelAnimationFrame(travel.current);
       const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
       setCamera((current) => {
@@ -177,7 +178,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
       });
       rememberZoom(scale);
     },
-    [constrain, rememberZoom],
+    [constrain, rememberZoom, closePrompt],
   );
 
   useEffect(() => {
@@ -246,6 +247,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
     if (!element || !desktop) return;
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
+      closePrompt();
       cancelAnimationFrame(travel.current);
       setCamera((current) => {
         const box = element.getBoundingClientRect();
@@ -266,7 +268,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
     };
     element.addEventListener("wheel", onWheel, { passive: false });
     return () => element.removeEventListener("wheel", onWheel);
-  }, [constrain, desktop, rememberZoom]);
+  }, [constrain, desktop, rememberZoom, closePrompt]);
 
   const travelTo = useCallback((y: number) => {
     cancelAnimationFrame(travel.current);
@@ -508,6 +510,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
     >
       <div
         ref={viewport}
+        onScroll={closePrompt}
         inert={!arrived}
         className={styles.viewport}
         onPointerDown={(event) => {
@@ -523,7 +526,10 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
           if (!start || start.pointerId !== event.pointerId) return;
           const dx = event.clientX - start.x;
           const dy = event.clientY - start.y;
-          if (Math.abs(dx) + Math.abs(dy) > 2) dragged.current = true;
+          if (Math.abs(dx) + Math.abs(dy) > 2) {
+            dragged.current = true;
+            closePrompt();
+          }
           const samples = [...start.samples, { x: event.clientX, y: event.clientY, time: event.timeStamp }];
           // A short history avoids letting the final tiny movement erase a flick.
           while (samples.length > 2 && samples[1].time < event.timeStamp - 120) samples.shift();
