@@ -23,7 +23,7 @@ export async function generateFloorImage(
 ): Promise<GeneratedTile> {
   if (!keys.fal) throw new Error("No image provider key was supplied.");
 
-  const tile = await fal.generate(keys.fal, prompt, reference);
+  const tile = await fal.generate(keys.fal, prompt, reference, keys.funding);
 
   const size = readDimensions(tile.bytes);
   const mimeType = detectMime(tile.bytes);

@@ -22,7 +22,7 @@ export default function KeyPanel({ keys, onChange, serverKeys }: Props) {
         <input
           type="password"
           value={keys.anthropic}
-          placeholder={serverKeys ? "using the host's key" : "sk-ant-..."}
+          placeholder="sk-ant-..."
           onChange={(event) => onChange({ ...keys, anthropic: event.target.value })}
         />
       </label>
@@ -31,7 +31,7 @@ export default function KeyPanel({ keys, onChange, serverKeys }: Props) {
         <input
           type="password"
           value={keys.fal}
-          placeholder={serverKeys ? "using the host's key" : "fal key"}
+          placeholder="fal key"
           onChange={(event) => onChange({ ...keys, fal: event.target.value })}
         />
       </label>

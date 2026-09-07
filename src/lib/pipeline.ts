@@ -66,8 +66,10 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor | n
       kind: "floor",
       existingThemes: existing
         .filter((floor) => floor.kind === "floor" && floor.status === "ready")
+        .slice(options.keys.funding ? -200 : 0)
         .map((floor) => floor.displayName),
       effort: options.effort,
+      funding: options.keys.funding,
     });
   } catch (error) {
     if (error instanceof RefusalError) {

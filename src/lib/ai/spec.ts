@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { FloorSpecSchema, type Effort, type FloorKind, type FloorSpec } from "./types";
 import { RefusalError } from "./errors";
+import { assertBeforeDeadline, POLICY, type Funding } from "@/lib/sponsorship/policy";
 
 /**
  * Sonnet rather than Opus: this stage is creative expansion, not hard
@@ -40,6 +41,7 @@ export interface SpecContext {
   /** Themes already in the building, so the interpreter diverges from them. */
   existingThemes: string[];
   effort?: Effort;
+  funding?: Funding;
 }
 
 export async function generateFloorSpec(
@@ -47,7 +49,7 @@ export async function generateFloorSpec(
   theme: string,
   context: SpecContext,
 ): Promise<FloorSpec> {
-  const client = new Anthropic({ apiKey });
+  const client = new Anthropic({ apiKey, ...(context.funding ? { maxRetries: 0, timeout: 120_000 } : {}) });
 
   const avoid = context.existingThemes.length
     ? `\n\nThe building already contains these floors: ${context.existingThemes.join(
@@ -55,16 +57,30 @@ export async function generateFloorSpec(
       )}. This floor must feel clearly distinct from all of them, even if the theme is similar.`
     : "";
 
-  const response = await client.messages.parse({
-    model: MODEL,
+  const input = {
+    model: context.funding ? POLICY.specModel : MODEL,
     max_tokens: 16000,
     system: SYSTEM,
     output_config: {
       effort: context.effort ?? "medium",
       format: zodOutputFormat(FloorSpecSchema),
     },
-    messages: [{ role: "user", content: `Theme: ${theme}${avoid}` }],
-  });
+    messages: [{ role: "user" as const, content: `Theme: ${theme}${avoid}` }],
+  };
+  if (context.funding) {
+    assertBeforeDeadline(context.funding);
+    const count = await client.messages.countTokens({ model: input.model, system: input.system, messages: input.messages, output_config: input.output_config });
+    if (count.input_tokens > POLICY.specInput) {
+      context.funding.certain = true;
+      throw new Error("The building context is too large for a sponsored floor.");
+    }
+    assertBeforeDeadline(context.funding);
+  }
+  const response = await client.messages.parse(input);
+  if (context.funding) {
+    context.funding.cost += response.usage.input_tokens * 2 + response.usage.output_tokens * 10;
+    context.funding.certain = response.usage.input_tokens <= POLICY.specInput && response.usage.output_tokens <= POLICY.specOutput;
+  }
 
   if (response.stop_reason === "refusal") {
     throw new RefusalError(

@@ -4,7 +4,8 @@ eye candy mostly. useless mainly.
 
 **[See it running →](https://nextfloor.up.railway.app)**
 
-Bring your own Anthropic and fal keys to add a floor; looking costs nothing.
+Explore for free. Add a floor with your own Anthropic and fal keys, or use a
+shared sponsored attempt when the host has enabled the capped allowance.
 
 ![The building](docs/building.png)
 
@@ -74,9 +75,14 @@ pnpm dev
 ```
 
 Keys are bring-your-own: visitors enter an Anthropic key and a fal key in the
-browser, and they are sent per request and never stored server-side. Set
-`ALLOW_SERVER_KEYS=true` to let the server fall back to its own keys — leave it
-off on a public deployment.
+browser, and they are sent per request and never stored server-side. A partial
+pair never falls back to host funds. `ALLOW_SERVER_KEYS` no longer enables
+unmetered public generation.
+
+Optional sponsorship uses dedicated credentials and a durable $10/month AI
+allowance, with at most four shared floor attempts per day. It ships disabled.
+See [sponsored generation](docs/reference/sponsored-generation.md) for setup,
+accounting behavior, and isolated verification commands.
 
 Tiles are stored in Postgres by default. Set `S3_BUCKET` (and install
 `@aws-sdk/client-s3`) to use an S3-compatible bucket instead.
@@ -93,8 +99,7 @@ The Railway service is connected to `main`: merging deploys. The database is
 shared, so floors added locally already exist in production and appear as soon
 as the code catches up.
 
-`ALLOW_SERVER_KEYS` is off in production, so visitors bring their own Anthropic
-and fal keys.
+Sponsorship defaults off. Visitors can always bring their own Anthropic and fal keys.
 
 ## Conventions
 
@@ -103,10 +108,6 @@ Layout, naming, styling, docs and the issue workflow follow
 repo diverges, the divergence is an open issue rather than a local rule.
 
 ## Status
-
-The visitor-experience branch adds an elevator arrival sequence, progressive
-viewport image loading, and original prompts alongside the eye/tap reveal.
-The loading panel mirrors the navigation's four-column floor layout (#48).
 
 **Last shipped**
 
@@ -127,8 +128,11 @@ The loading panel mirrors the navigation's four-column floor layout (#48).
 
 **Up next**
 
-The `now` label carries what to do next; `focus` is what is actively being
-worked out. Issue #1 remains the overall spec.
+The `now` label carries what to do next; #48 tracks the visitor experience work.
+Issue #1 remains the overall spec. The visitor-experience and sponsored-floors
+branches add elevator arrival, original-prompt reveal, progressive image loading,
+contextual suggestions, and capped public creation. Sponsorship stays disabled
+until dedicated provider credentials are configured.
 
 Known gaps, in order of how much they cost:
 
@@ -142,6 +146,4 @@ Known gaps, in order of how much they cost:
 
 **Focus**
 
-Nothing is mid-flight. Generation is healthy -- seventeen floors, consistent
-shells, few failures. Open #35 and start the house-cleaning pass; it names the
-order and the reason for it.
+Visitor experience (#48). House cleaning (#35) follows this work.
