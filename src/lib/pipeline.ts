@@ -23,6 +23,7 @@ import {
 } from "@/lib/db/floors";
 import { deleteImage, getImage, putImage } from "@/lib/storage";
 import { restoreAlpha } from "@/lib/image/alpha";
+import { extensionFor, optimizeFloorImage } from "@/lib/image/optimize";
 import { analyzeTone, matchTone } from "@/lib/image/tone";
 import { assertConsistentTiles, readStartingTile } from "@/lib/building/importTiles";
 
@@ -111,11 +112,13 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor | n
     });
   }
 
-  const bytes = await restoreAlpha(tile.bytes);
-  const mimeType = bytes === tile.bytes ? tile.mimeType : "image/png";
-  const extension = mimeType === "image/png" ? "png" : "jpg";
-  const key = `floors/${randomUUID()}.${extension}`;
-  await putImage(key, bytes, mimeType);
+  const restored = await restoreAlpha(tile.bytes);
+  const restoredMime = restored === tile.bytes ? tile.mimeType : "image/png";
+  // Encoding is a delivery concern, so it happens after the artwork is final and
+  // nothing upstream of here knows about it.
+  const optimized = await optimizeFloorImage(restored, restoredMime);
+  const key = `floors/${randomUUID()}.${extensionFor(optimized.mimeType)}`;
+  await putImage(key, optimized.bytes, optimized.mimeType);
 
   return completeFloor(options.floorId, {
     status: "ready",
@@ -127,10 +130,13 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor | n
       attempts,
       effort: options.effort ?? "medium",
       editPrompt: reference ? EDIT_PROMPT_NAME : null,
+      encoding: optimized.strategy,
+      originalBytes: optimized.originalBytes,
+      storedBytes: optimized.optimizedBytes,
       width: tile.width,
       height: tile.height,
     },
-    image: { key, mime: mimeType, width: tile.width, height: tile.height },
+    image: { key, mime: optimized.mimeType, width: tile.width, height: tile.height },
   });
 }
 
