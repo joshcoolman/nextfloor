@@ -67,7 +67,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
   const [desktop, setDesktop] = useState(false);
   const [viewportHeight, setViewportHeight] = useState(0);
   const viewport = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ pointerId: number; x: number; y: number; time: number; vx: number; vy: number } | null>(null);
+  const drag = useRef<{ pointerId: number; x: number; y: number; time: number; vx: number; vy: number; samples: { x: number; y: number; time: number }[] } | null>(null);
   const dragged = useRef(false);
   const cameraRef = useRef(camera);
   const travel = useRef(0);
@@ -297,10 +297,10 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
     let previous = performance.now();
     let position = cameraRef.current;
     const tick = (now: number) => {
-      const elapsed = now - previous;
+      const elapsed = Math.min(32, now - previous);
       previous = now;
-      // Do not jump ahead after a background tab or a long stalled frame.
-      if (elapsed > 100) return;
+      // Slow frames should not kill momentum or jump the camera ahead.
+      if (document.hidden) return;
       const decay = Math.exp(-elapsed / 500);
       const distance = 500 * (1 - decay);
       const x = position.x + vx * distance;
@@ -476,6 +476,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
     return (
       <button
         className={styles.peek}
+        data-floor-eye
         data-active={active || undefined}
         aria-label={`${active ? "Restore" : "Reveal"} ${placed[index].floor.displayName}`}
         aria-pressed={active}
@@ -506,7 +507,8 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
         onPointerDown={(event) => {
           if (!desktop || event.button !== 0) return;
           cancelAnimationFrame(travel.current);
-          drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, vx: 0, vy: 0 };
+          drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, vx: 0, vy: 0,
+            samples: [{ x: event.clientX, y: event.clientY, time: event.timeStamp }] };
           dragged.current = false;
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
@@ -516,12 +518,15 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
           const dx = event.clientX - start.x;
           const dy = event.clientY - start.y;
           if (Math.abs(dx) + Math.abs(dy) > 2) dragged.current = true;
-          const elapsed = Math.max(8, event.timeStamp - start.time);
-          const weight = elapsed > 100 ? 1 : 0.65;
+          const samples = [...start.samples, { x: event.clientX, y: event.clientY, time: event.timeStamp }];
+          // A short history avoids letting the final tiny movement erase a flick.
+          while (samples.length > 2 && samples[1].time < event.timeStamp - 120) samples.shift();
+          const first = samples[0];
+          const elapsed = Math.max(8, event.timeStamp - first.time);
           drag.current = {
-            pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp,
-            vx: Math.max(-3, Math.min(3, start.vx * (1 - weight) + dx / elapsed * weight)),
-            vy: Math.max(-3, Math.min(3, start.vy * (1 - weight) + dy / elapsed * weight)),
+            pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, samples,
+            vx: Math.max(-3, Math.min(3, (event.clientX - first.x) / elapsed)),
+            vy: Math.max(-3, Math.min(3, (event.clientY - first.y) / elapsed)),
           };
           setCamera((current) => constrain(current.scale, current.x + dx, current.y + dy));
         }}
@@ -530,7 +535,8 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
           if (release?.pointerId !== event.pointerId) return;
           drag.current = null;
           event.currentTarget.releasePointerCapture(event.pointerId);
-          if (dragged.current && event.timeStamp - release.time < 100) coast(release.vx, release.vy);
+          const decay = Math.exp(-Math.max(0, event.timeStamp - release.time - 40) / 180);
+          if (dragged.current) coast(release.vx * decay, release.vy * decay);
         }}
         onPointerCancel={() => {
           cancelAnimationFrame(travel.current);
