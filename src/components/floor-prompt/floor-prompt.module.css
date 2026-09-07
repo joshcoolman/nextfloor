@@ -1,7 +1,7 @@
 .card {
   position: fixed;
-  bottom: 24px;
-  left: 24px;
+  top: var(--prompt-top, 24px);
+  left: var(--prompt-left, 24px);
   z-index: 35;
   width: min(360px, calc(100vw - 48px));
   max-height: 40dvh;
@@ -12,10 +12,6 @@
   user-select: text;
 }
 .heading { display: flex; justify-content: space-between; gap: 16px; color: var(--ink-dim); font-size: 10px; letter-spacing: .12em; }
-.heading button { font-size: inherit; letter-spacing: inherit; }
 .card h2 { font-size: 15px; font-weight: 500; margin: 12px 0 8px; }
 .card p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; color: var(--ink-dim); margin: 0; }
-@media (min-width: 641px) {
-  .card { bottom: auto; top: var(--prompt-top, 24px); left: var(--prompt-left, 24px); }
-}
-@media (max-width: 640px) { .card { bottom: 76px; left: 16px; width: calc(100vw - 32px); } }
+@media (max-width: 640px) { .card { width: calc(100vw - 32px); } }
