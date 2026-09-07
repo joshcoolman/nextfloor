@@ -15,4 +15,7 @@
 .heading button { font-size: inherit; letter-spacing: inherit; }
 .card h2 { font-size: 15px; font-weight: 500; margin: 12px 0 8px; }
 .card p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; color: var(--ink-dim); margin: 0; }
+@media (min-width: 641px) {
+  .card { bottom: auto; top: var(--prompt-top, 24px); left: var(--prompt-left, 24px); }
+}
 @media (max-width: 640px) { .card { bottom: 76px; left: 16px; width: calc(100vw - 32px); } }
