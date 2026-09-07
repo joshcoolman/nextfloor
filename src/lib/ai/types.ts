@@ -41,5 +41,7 @@ export interface Floor {
   /** Pixel size of the tile, so the layout follows the art rather than a constant. */
   width: number | null;
   height: number | null;
+  /** The tile every generation is matched against. It is not part of the tower. */
+  isReference: boolean;
   createdAt: string;
 }

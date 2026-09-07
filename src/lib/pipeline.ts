@@ -14,6 +14,7 @@ import type { Effort, Floor, FloorKind } from "@/lib/ai/types";
 import type { Reference } from "@/lib/ai/providers/types";
 import {
   BASEMENT_ORDINAL,
+  REFERENCE_ORDINAL,
   ROOF_ORDINAL,
   clearStaticSlot,
   completeFloor,
@@ -236,7 +237,12 @@ async function importFloor(
   await putImage(key, tile.bytes, tile.mimeType);
 
   return insertFloor({
-    ordinal: kind === "roof" ? ROOF_ORDINAL : kind === "basement" ? BASEMENT_ORDINAL : 1,
+    ordinal:
+      kind === "roof"
+        ? ROOF_ORDINAL
+        : kind === "basement"
+          ? BASEMENT_ORDINAL
+          : REFERENCE_ORDINAL,
     kind,
     status: "ready",
     themePrompt: theme,

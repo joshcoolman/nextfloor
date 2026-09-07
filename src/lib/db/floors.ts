@@ -3,6 +3,16 @@ import { ensureSchema, pool } from "./client";
 import type { Floor, FloorKind, FloorSpec, FloorStatus } from "@/lib/ai/types";
 
 export const BASEMENT_ORDINAL = -1000;
+/**
+ * The reference tile is artwork, not a storey.
+ *
+ * It exists so every generation has a shell to match, and it used to occupy
+ * floor 1 as well -- which meant the building's ground floor could never be
+ * generated, and the number painted on the artwork had to be corrected by hand
+ * if the tile was ever replaced. Parked below the basement it is out of the
+ * numbering entirely, and floor 1 is a slot like any other.
+ */
+export const REFERENCE_ORDINAL = -2000;
 export const ROOF_ORDINAL = 1_000_000;
 
 interface Row {
@@ -36,6 +46,7 @@ function toFloor(row: Row): Floor {
     meta: row.meta,
     width: row.image_width,
     height: row.image_height,
+    isReference: row.is_reference,
     createdAt: row.created_at.toISOString(),
   };
 }
@@ -64,6 +75,21 @@ export async function referenceTile(): Promise<
         height: row.image_height,
       }
     : null;
+}
+
+/**
+ * Moves a reference tile that still sits at floor 1 out of the numbering.
+ *
+ * The reference used to double as the ground floor. Buildings raised before
+ * that changed still have it there, holding a slot nothing can generate into.
+ */
+export async function parkReferenceTile(): Promise<boolean> {
+  await ensureSchema();
+  const { rowCount } = await pool().query(
+    `update floors set ordinal = $1 where is_reference and ordinal <> $1`,
+    [REFERENCE_ORDINAL],
+  );
+  return Boolean(rowCount);
 }
 
 export async function nextFloorOrdinal(): Promise<number> {
@@ -171,6 +197,7 @@ const FREE_ORDINAL = `
       where f.kind = 'floor'
         and f.ordinal = n
         and f.status <> 'dead'
+        and not f.is_reference
    )
 `;
 
