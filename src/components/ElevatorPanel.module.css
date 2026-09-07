@@ -1,8 +1,9 @@
-/* Pinned bottom left, opposite the zoom stepper: both belong to the view rather
-   than to the floor-making controls, and the building is centred between them. */
+/* Pinned bottom right, under the add-floor button: the elevator shafts are drawn
+   on the right of every tile, so the call panel belongs on that side. The zoom
+   stepper takes the left, and the building is centred between them. */
 .panel {
   position: fixed;
-  left: 16px;
+  right: 16px;
   bottom: 16px;
   z-index: 20;
   display: flex;
