@@ -20,15 +20,12 @@ export default function FloorPrompt({ floor, onClose }: { floor: Floor; onClose:
     panel.style.setProperty("--prompt-left", `${left}px`);
     panel.style.setProperty("--prompt-top", `${top}px`);
   }, [floor.id]);
-  // Tower camera updates render this card too. Measure before paint so it
-  // follows the eye without a second React render on every animation frame.
-  useLayoutEffect(align);
+  // Position when opened; moving the tower dismisses the inspection.
+  useLayoutEffect(align, [align]);
   useEffect(() => {
     window.addEventListener("resize", align);
-    window.addEventListener("scroll", align, true);
     return () => {
       window.removeEventListener("resize", align);
-      window.removeEventListener("scroll", align, true);
     };
   }, [align]);
   useEffect(() => {
