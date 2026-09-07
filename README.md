@@ -74,13 +74,15 @@ cp .env.example .env.local   # set DATABASE_URL
 pnpm dev
 ```
 
-Keys are bring-your-own: visitors enter an Anthropic key and a fal key in the
-browser, and they are sent per request and never stored server-side. A partial
-pair never falls back to host funds. `ALLOW_SERVER_KEYS` no longer enables
-unmetered public generation.
+Local development uses `.env.local` keys automatically. Browser keys override
+them per provider and are never stored server-side. Room hint badges need only
+Anthropic; creating floors needs Anthropic and fal. Complete BYOK is uncapped.
 
-Optional sponsorship uses dedicated credentials and a durable $10/month AI
-allowance, with at most four shared floor attempts per day. It ships disabled.
+Production requires `PUBLIC_GENERATION=true` to expose server keys for anonymous
+use. `PUBLIC_MONTHLY_BUDGET_USD` defaults to $10 and accrues in daily portions,
+with unused daily credit carrying within the month and at most four public
+floor attempts/day. Keys alone do not opt in; partial production BYOK never
+silently falls back to public funds. Public access ships disabled.
 See [sponsored generation](docs/reference/sponsored-generation.md) for setup,
 accounting behavior, and isolated verification commands.
 

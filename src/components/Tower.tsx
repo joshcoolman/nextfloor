@@ -57,6 +57,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
   const retryArrival = useCallback(() => { setLoadError(null); setLoadAttempt((n) => n + 1); }, []);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [serverKeys, setServerKeys] = useState(false);
+  const [keyAvailability, setKeyAvailability] = useState({ anthropic: false, fal: false });
   const [sponsored, setSponsored] = useState<SponsoredAvailability>(NO_SPONSORSHIP);
   const refreshSponsorship = useCallback(() => {
     fetch("/api/sponsorship").then((response) => { if (!response.ok) throw new Error(); return response.json(); })
@@ -105,7 +106,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
   const frame = useMemo(() => frameOf(visible), [visible]);
   const placed = useMemo(() => placeFloors(visible, frame), [visible, frame]);
   const hasAnyKey = Boolean(keys.anthropic.trim() || keys.fal.trim());
-  const ready = hasAnyKey ? Boolean(keys.anthropic.trim() && keys.fal.trim()) : sponsored.available;
+  const ready = Boolean((keys.anthropic.trim() || keyAvailability.anthropic) && (keys.fal.trim() || keyAvailability.fal)) || (!hasAnyKey && sponsored.available);
 
   /** How much each tile rides up over the one below it. */
   const overlap = frame.height - frame.pitch;
@@ -190,6 +191,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
         if (!Array.isArray(data.floors)) throw new Error();
         setFloors(data.floors);
         setServerKeys(data.serverKeys);
+        setKeyAvailability(data.keyAvailability ?? { anthropic: false, fal: false });
         setSponsored(data.sponsored ?? NO_SPONSORSHIP);
         setLocal(Boolean(data.local));
         setMetadataLoaded(true);

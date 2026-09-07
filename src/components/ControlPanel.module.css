@@ -48,17 +48,28 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(4, 12, 22, 0.42);
   backdrop-filter: blur(3px);
 }
 
 .modal {
+  --ground: #192a40;
+  --ground-lift: #102035;
+  --edge: #506580;
+  --ink: #f3f7ff;
+  --ink-dim: #c3d1e3;
+  --ink-faint: #a4b6ce;
+  --signal: #a5f0dc;
+  --danger: #ffb2a6;
   width: min(480px, 100%);
   max-height: min(80vh, 720px);
   display: flex;
   flex-direction: column;
   background: var(--ground);
   border: 1px solid var(--edge);
+  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.4);
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 /* Panes switch inside one dialog rather than stacking dialogs. */
@@ -70,7 +81,7 @@
 .tab {
   flex: 1;
   padding: 12px 10px;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   color: var(--ink-faint);
   border-right: 1px solid var(--edge);
@@ -85,22 +96,25 @@
 }
 
 .tab[data-active="true"] {
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.06);
+  color: var(--signal);
+  background: #29485a;
+  box-shadow: inset 0 -3px var(--signal);
 }
 
 .pane {
-  padding: 16px;
+  padding: 20px;
   overflow-y: auto;
 }
 
 .close {
   padding: 11px;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.08em;
   color: var(--ink-faint);
   border-top: 1px solid var(--edge);
 }
+
+.modal button:focus-visible { outline: 2px solid var(--signal); outline-offset: -3px; }
 
 .close:hover {
   color: var(--ink);

@@ -5,7 +5,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { Floor } from "@/lib/ai/types";
 import { listFloors } from "@/lib/db/floors";
 import { pool } from "@/lib/db/client";
-import { sponsoredKeys } from "@/lib/ai/keys";
+import { sponsoredKeys, suggestionKey } from "@/lib/ai/keys";
 import { locked, reserveBudget, settleBudget } from "./ledger";
 import { assertBeforeDeadline, POLICY } from "./policy";
 import { pricesSafe } from "./pricing";
@@ -30,28 +30,36 @@ export function relevantSuggestions(suggestions: Suggestion[], floors: Floor[]):
   });
 }
 
-interface Batch { batch_id: string | null; fingerprint: string | null; suggestions: Suggestion[]; generated_at: Date | null; attempted_at: Date | null }
+interface Batch { batch_id: string | null; fingerprint: string | null; suggestions: Suggestion[]; generated_at: Date | null; attempted_at: Date | null; reservation_id: string | null }
 
-export async function getSuggestions() {
+export async function getSuggestions(anthropicKey = suggestionKey()) {
   const floors = (await listFloors()).filter((floor) => floor.kind === "floor" && !floor.isReference && floor.status !== "dead");
   const fingerprint = createHash("sha256").update(JSON.stringify(floors.map((f) => [f.id, f.displayName, f.themePrompt]))).digest("hex");
-  const keys = sponsoredKeys();
+  const keys = anthropicKey ? { anthropic: anthropicKey, fal: "" } : sponsoredKeys();
   const cached = await locked(async (client) => {
     await client.query("insert into floor_suggestions(singleton) values (true) on conflict do nothing");
     return (await client.query<Batch>("select * from floor_suggestions where singleton")).rows[0];
   });
   const result = () => ({ batchId: cached.batch_id, suggestions: relevantSuggestions(cached.suggestions, floors) });
   const fresh = cached.fingerprint === fingerprint && cached.generated_at && Date.now() - cached.generated_at.getTime() < 86_400_000;
-  const cooling = cached.attempted_at && Date.now() - cached.attempted_at.getTime() < 21_600_000;
-  if (!keys || fresh || cooling || !await pricesSafe(keys.fal)) return result();
-  const funding = await locked(async (client) => {
+  const cooling = !anthropicKey && cached.attempted_at && Date.now() - cached.attempted_at.getTime() < 21_600_000;
+  if (!keys || fresh || cooling || (!anthropicKey && !await pricesSafe(keys.fal))) return result();
+  const claim = await locked(async (client) => {
     const { rows: [current] } = await client.query<Batch>("select * from floor_suggestions where singleton");
-    if (current.attempted_at && Date.now() - current.attempted_at.getTime() < 21_600_000) return null;
-    const reservation = await reserveBudget(client, "suggestion");
-    await client.query("update floor_suggestions set attempted_at = now(), reservation_id = $1 where singleton", [reservation.id]);
-    return reservation;
+    // Recheck freshness under the lock; only one process generates a shared batch.
+    if (current.fingerprint === fingerprint && current.generated_at && Date.now() - current.generated_at.getTime() < 86_400_000) return null;
+    const age = current.attempted_at ? Date.now() - current.attempted_at.getTime() : Infinity;
+    if ((current.reservation_id && age < 60_000) || (!anthropicKey && age < 21_600_000)) return null;
+    const funding = anthropicKey ? undefined : await reserveBudget(client, "suggestion");
+    const id = funding?.id ?? randomUUID();
+    await client.query("update floor_suggestions set attempted_at = now(), reservation_id = $1 where singleton", [id]);
+    return { id, funding };
   }).catch(() => null);
-  if (!funding) return result();
+  if (!claim) {
+    const { rows: [latest] } = await pool().query<Batch>("select * from floor_suggestions where singleton");
+    return { batchId: latest.batch_id, suggestions: relevantSuggestions(latest.suggestions, floors), pending: Boolean(latest.reservation_id) };
+  }
+  const { funding } = claim;
   try {
     const recent = floors.slice(-24);
     const older = floors.slice(0, -24);
@@ -66,19 +74,26 @@ export async function getSuggestions() {
       messages: [{ role: "user" as const, content: JSON.stringify({ existing: context, previous: cached.suggestions }) }],
       output_config: { format: zodOutputFormat(Schema) },
     };
-    assertBeforeDeadline(funding);
-    const count = await client.messages.countTokens({ model: input.model, system: input.system, messages: input.messages, output_config: input.output_config });
-    if (count.input_tokens > POLICY.suggestionInput) { funding.certain = true; return result(); }
-    assertBeforeDeadline(funding);
+    if (funding) {
+      assertBeforeDeadline(funding);
+      const count = await client.messages.countTokens({ model: input.model, system: input.system, messages: input.messages, output_config: input.output_config });
+      if (count.input_tokens > POLICY.suggestionInput) { funding.certain = true; return result(); }
+      assertBeforeDeadline(funding);
+    }
     const response = await client.messages.parse(input);
-    funding.cost = response.usage.input_tokens + response.usage.output_tokens * 5;
-    funding.certain = response.usage.input_tokens <= POLICY.suggestionInput && response.usage.output_tokens <= POLICY.suggestionOutput;
+    if (funding) {
+      funding.cost = response.usage.input_tokens + response.usage.output_tokens * 5;
+      funding.certain = response.usage.input_tokens <= POLICY.suggestionInput && response.usage.output_tokens <= POLICY.suggestionOutput;
+    }
     const suggestions = relevantSuggestions(response.parsed_output?.suggestions ?? [], floors);
     if (suggestions.length < 3) return result();
     const batchId = randomUUID();
     await pool().query(`update floor_suggestions set batch_id = $1, fingerprint = $2, suggestions = $3, generated_at = now()
-      where singleton and reservation_id = $4`, [batchId, fingerprint, JSON.stringify(suggestions), funding.id]);
+      where singleton and reservation_id = $4`, [batchId, fingerprint, JSON.stringify(suggestions), claim.id]);
     return { batchId, suggestions };
   } catch { return result(); }
-  finally { await settleBudget(funding); }
+  finally {
+    if (funding) await settleBudget(funding);
+    await pool().query("update floor_suggestions set reservation_id = null where singleton and reservation_id = $1", [claim.id]);
+  }
 }

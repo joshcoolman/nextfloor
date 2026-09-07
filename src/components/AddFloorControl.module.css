@@ -22,10 +22,13 @@
   width: 100%;
 }
 
-.suggestions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.suggestions button { border: 1px solid var(--edge); border-radius: 16px; padding: 6px 10px; color: var(--ink-dim); font-size: 11px; }
-.suggestions button:hover { border-color: var(--ink-dim); color: var(--ink); }
-.allowance { font-size: 11px; line-height: 1.5; color: var(--ink-dim); margin: 12px 0; }
+.suggestions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.suggestions button { border: 1px solid #6eab9d; background: #244f4b; border-radius: 18px; padding: 8px 12px; color: #c6fff0; font-size: 12px; }
+.suggestions button:nth-child(3n + 2) { background: #443759; border-color: #a391c1; color: #eddcff; }
+.suggestions button:nth-child(3n) { background: #50432d; border-color: #bca174; color: #ffe1a8; }
+.suggestions button:hover { filter: brightness(1.2); }
+.allowance, .ideasStatus { font-size: 12px; line-height: 1.6; color: var(--ink-dim); margin: 14px 0; }
+.ideasStatus button { color: var(--signal); text-decoration: underline; text-underline-offset: 3px; }
 
 .field {
   display: grid;
@@ -39,9 +42,9 @@
 }
 
 .label {
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.12em;
-  color: var(--ink-faint);
+  color: var(--ink-dim);
 }
 
 .clear {
@@ -58,7 +61,7 @@
 
 .input {
   width: 100%;
-  min-height: 92px;
+  min-height: 110px;
   resize: vertical;
   padding: 10px 12px;
   font: inherit;
@@ -66,11 +69,13 @@
   color: var(--ink);
   background: var(--ground-lift);
   border: 1px solid var(--edge);
+  border-radius: 6px;
   outline: none;
 }
 
 .input:focus {
-  border-color: var(--ink-faint);
+  border-color: var(--signal);
+  box-shadow: 0 0 0 2px #a5f0dc22;
 }
 
 .input::placeholder {
@@ -80,21 +85,25 @@
 .submit {
   width: 100%;
   margin-top: 8px;
-  padding: 10px;
+  padding: 12px;
   letter-spacing: 0.1em;
-  font-size: 11px;
-  color: var(--ink);
-  border: 1px solid var(--edge);
+  font-size: 12px;
+  font-weight: 600;
+  color: #102c2b;
+  background: var(--signal);
+  border: 1px solid var(--signal);
+  border-radius: 6px;
   transition: background 140ms ease, border-color 140ms ease;
 }
 
 .submit:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: var(--ink-faint);
+  background: #cafff0;
 }
 
 .submit:disabled {
   color: var(--ink-faint);
+  background: #273b53;
+  border-color: var(--edge);
   cursor: not-allowed;
 }
 

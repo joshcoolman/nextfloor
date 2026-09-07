@@ -14,24 +14,32 @@ export class MissingKeyError extends Error {
 }
 
 export function sponsoredKeys(): Keys | null {
-  if (process.env.SPONSORED_GENERATION !== "true") return null;
-  const anthropic = process.env.SPONSORED_ANTHROPIC_KEY;
-  const fal = process.env.SPONSORED_FAL_KEY;
+  const publicUse = process.env.PUBLIC_GENERATION === "true";
+  if (!publicUse && process.env.SPONSORED_GENERATION !== "true") return null;
+  const anthropic = (publicUse ? process.env.ANTHROPIC_API_KEY : "") || process.env.SPONSORED_ANTHROPIC_KEY;
+  const fal = (publicUse ? process.env.FAL_KEY || process.env.FAL_API_KEY : "") || process.env.SPONSORED_FAL_KEY;
   return anthropic && fal ? { anthropic, fal } : null;
 }
 
-/**
- * Bring your own key. Keys arrive per request from the browser and are never
- * persisted or logged. The host's own keys in the environment are used only
- * when explicitly opted in, so a public deployment does not quietly spend the
- * owner's money on strangers' floors. Host-funded calls use sponsoredKeys()
- * only after passing the separate budget gate; no per-provider fallback.
- */
+/** Only the development server uses environment credit without public opt-in.
+ * Never trust a request Host header to grant unmetered production access. */
+export function environmentKeys(): Keys {
+  if (process.env.NODE_ENV !== "development") return { anthropic: "", fal: "" };
+  return { anthropic: process.env.ANTHROPIC_API_KEY?.trim() ?? "",
+    fal: (process.env.FAL_KEY || process.env.FAL_API_KEY)?.trim() ?? "" };
+}
+
+export function suggestionKey(request?: Request): string {
+  return request?.headers.get("x-anthropic-key")?.trim() || environmentKeys().anthropic;
+}
+
+/** Browser values take precedence per provider; invalid supplied keys are never retried with host keys. */
 export function resolveKeys(request: Request): Keys {
+  const environment = environmentKeys();
   const keys: Keys = {
-    anthropic: request.headers.get("x-anthropic-key")?.trim() ?? "",
+    anthropic: request.headers.get("x-anthropic-key")?.trim() || environment.anthropic,
     // FAL_KEY is fal's own convention; FAL_API_KEY is the name people reach for.
-    fal: request.headers.get("x-fal-key")?.trim() ?? "",
+    fal: request.headers.get("x-fal-key")?.trim() || environment.fal,
   };
 
   const missing: string[] = [];
@@ -43,6 +51,7 @@ export function resolveKeys(request: Request): Keys {
 }
 
 export function visitorKeys(request: Request): Keys | null {
-  if (!request.headers.get("x-anthropic-key")?.trim() && !request.headers.get("x-fal-key")?.trim()) return null;
+  const environment = environmentKeys();
+  if (!request.headers.get("x-anthropic-key")?.trim() && !request.headers.get("x-fal-key")?.trim() && !environment.anthropic && !environment.fal) return null;
   return resolveKeys(request);
 }

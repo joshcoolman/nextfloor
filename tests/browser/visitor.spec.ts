@@ -210,6 +210,38 @@ test("suggestions rotate, fill drafts, hide while editing, and never submit", as
   expect(creates).toBe(0);
 });
 
+test("BYOK enables colorful hint badges without public funding", async ({ page }, testInfo) => {
+  await page.addInitScript(() => localStorage.setItem("nextfloor.keys", JSON.stringify({ anthropic: "browser-hints-key", fal: "browser-floor-key" })));
+  await mockBuilding(page);
+  await page.route("**/api/floors", (route) => route.fulfill({ json: { floors, sponsored: { ...sponsored, enabled: false, available: false }, serverKeys: false, local: false } }));
+  let usedKey = "";
+  await page.route("**/api/suggestions", (route) => {
+    usedKey = route.request().headers()["x-anthropic-key"];
+    return route.fulfill({ json: { batchId: "byok-batch", suggestions: suggestions.map((idea, n) => ({ ...idea, label: ["Alien Café", "Zombie Dance Class", "Conspiracy Lab"][n % 3] + (n > 2 ? ` ${n}` : "") })) } });
+  });
+  await page.goto("/");
+  await expect(page.locator('[aria-busy="false"]')).toBeVisible();
+  await page.getByRole("button", { name: "Add a floor", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Alien Café", exact: true })).toBeVisible();
+  expect(usedKey).toBe("browser-hints-key");
+  await expect(page.getByRole("dialog")).toHaveCSS("background-color", "rgb(25, 42, 64)");
+  await page.screenshot({ path: testInfo.outputPath("bright-add-floor-hints.png") });
+  await page.getByRole("button", { name: "Alien Café", exact: true }).click();
+  await expect(page.getByLabel("DESCRIBE ROOM")).toHaveValue(suggestions[0].prompt);
+  await expect(page.getByRole("button", { name: "CREATE FLOOR", exact: true })).toBeEnabled();
+});
+
+test("development environment key availability enables creation without browser keys", async ({ page }) => {
+  await mockBuilding(page);
+  await page.route("**/api/floors", (route) => route.fulfill({ json: { floors, sponsored: { ...sponsored, enabled: false, available: false }, serverKeys: true, keyAvailability: { anthropic: true, fal: true }, local: true } }));
+  await page.goto("/");
+  await expect(page.locator('[aria-busy="false"]')).toBeVisible();
+  await page.getByRole("button", { name: "Add a floor", exact: true }).click();
+  await page.getByLabel("DESCRIBE ROOM").fill("A room full of friendly aliens.");
+  await expect(page.getByRole("button", { name: "CREATE FLOOR", exact: true })).toBeEnabled();
+  await expect(page.getByText("Using configured API keys. No shared allowance applies.")).toBeVisible();
+});
+
 test("metadata failure retries and reduced-motion empty arrival completes", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   let failed = true;

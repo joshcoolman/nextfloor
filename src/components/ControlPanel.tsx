@@ -107,7 +107,7 @@ export default function ControlPanel({
         if (event.target === event.currentTarget) setOpen(false);
       }}
     >
-      <div className={styles.modal}>
+      <div className={styles.modal} role="dialog" aria-modal="true" aria-label="Building controls">
         {tabs.length > 1 && (
           <div className={styles.tabs}>
             {tabs.map(([id, label]) => (
@@ -131,7 +131,8 @@ export default function ControlPanel({
               disabled={!ready}
               error={error}
               sponsored={sponsored}
-              usingOwnKeys={Boolean(keys.anthropic || keys.fal)}
+              usingOwnKeys={Boolean(keys.anthropic || keys.fal || serverKeys)}
+              anthropicKey={keys.anthropic}
               onSubmit={onSubmit}
               onDone={() => setOpen(false)}
             />
