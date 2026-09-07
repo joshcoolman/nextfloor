@@ -17,6 +17,10 @@
   cursor: grabbing;
 }
 
+.page[data-arriving] .viewport { animation: arrival-settle 400ms ease-out; }
+@keyframes arrival-settle { from { translate: 0 12px; } to { translate: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .page[data-arriving] .viewport { animation: none; } }
+
 /* The DOM tower is the movable content of the desktop viewport. */
 .stack {
   display: flex;
@@ -174,7 +178,9 @@
 
   .viewport {
     position: static;
-    overflow: visible;
+    width: 100%;
+    min-width: 0;
+    overflow: auto;
     cursor: auto;
     touch-action: auto;
     user-select: auto;
@@ -186,6 +192,7 @@
 
   .stack {
     position: relative;
+    width: max-content;
     transform: none;
     will-change: auto;
   }

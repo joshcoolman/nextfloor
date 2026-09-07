@@ -12,6 +12,10 @@ import { useKeys } from "@/hooks/useKeys";
 import { frameOf, placeFloors, towerHeight } from "@/lib/building/layout";
 import { TILE } from "@/lib/building/styleGuide";
 import type { Effort, Floor } from "@/lib/ai/types";
+import ElevatorArrival from "./elevator-arrival/elevator-arrival";
+import FloorPrompt from "./floor-prompt/floor-prompt";
+import FloorImage from "./floor-image/floor-image";
+import { useTowerImages } from "@/hooks/useTowerImages";
 
 /** Faint rather than gone: the lifted floor still reads as a floor. */
 const PEEK_OPACITY = 0.2;
@@ -40,7 +44,16 @@ function EyeIcon() {
   );
 }
 
-export default function Tower() {
+export default function Tower({ initialArrival }: { initialArrival: { ordinals: number[]; hasRoof: boolean } }) {
+  const [metadataLoaded, setMetadataLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [positioned, setPositioned] = useState(false);
+  const [arrived, setArrived] = useState(false);
+  const [revealing, setRevealing] = useState(false);
+  const revealBuilding = useCallback(() => setRevealing(true), []);
+  const finishArrival = useCallback(() => setArrived(true), []);
+  const retryArrival = useCallback(() => { setLoadError(null); setLoadAttempt((n) => n + 1); }, []);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [serverKeys, setServerKeys] = useState(false);
   const [local, setLocal] = useState(false);
@@ -54,7 +67,7 @@ export default function Tower() {
   const [desktop, setDesktop] = useState(false);
   const [viewportHeight, setViewportHeight] = useState(0);
   const viewport = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+  const drag = useRef<{ pointerId: number; x: number; y: number; time: number; vx: number; vy: number; samples: { x: number; y: number; time: number }[] } | null>(null);
   const dragged = useRef(false);
   const cameraRef = useRef(camera);
   const travel = useRef(0);
@@ -91,6 +104,9 @@ export default function Tower() {
   /** How much each tile rides up over the one below it. */
   const overlap = frame.height - frame.pitch;
   const contentHeight = towerHeight(placed.length, frame);
+  const images = useTowerImages(placed, frame.pitch, camera.scale, camera.y, positioned);
+  const revealed = peeked ? placed[placed.findIndex((item) => item.floor.id === peeked) + 1]?.floor : null;
+  const arrivalOrdinals = useMemo(() => visible.filter((floor) => floor.kind === "floor").map((floor) => floor.ordinal).sort((a, b) => a - b), [visible]);
 
   useEffect(() => {
     setForceKeys(new URLSearchParams(window.location.search).has("keys"));
@@ -99,8 +115,6 @@ export default function Tower() {
   useEffect(() => {
     cameraRef.current = camera;
   }, [camera]);
-
-  useEffect(() => () => cancelAnimationFrame(travel.current), []);
 
   useEffect(() => {
     const query = window.matchMedia(DESKTOP_QUERY);
@@ -146,6 +160,7 @@ export default function Tower() {
 
   const changeZoom = useCallback(
     (next: number, clientX?: number, clientY?: number) => {
+      cancelAnimationFrame(travel.current);
       const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
       setCamera((current) => {
         const box = viewport.current?.getBoundingClientRect();
@@ -165,15 +180,36 @@ export default function Tower() {
   );
 
   useEffect(() => {
-    fetch("/api/floors")
-      .then((response) => response.json())
+    const abort = new AbortController();
+    const timeout = setTimeout(() => abort.abort(), 20000);
+    fetch("/api/floors", { signal: abort.signal })
+      .then((response) => { if (!response.ok) throw new Error(); return response.json(); })
       .then((data) => {
+        if (!Array.isArray(data.floors)) throw new Error();
         setFloors(data.floors);
         setServerKeys(data.serverKeys);
         setLocal(Boolean(data.local));
+        setMetadataLoaded(true);
       })
-      .catch(() => setError("Could not reach the building. Is DATABASE_URL set?"));
-  }, []);
+      .catch(() => { if (!abort.signal.aborted || !ignore) setLoadError("Could not reach the building."); })
+      .finally(() => clearTimeout(timeout));
+    let ignore = false;
+    return () => { ignore = true; clearTimeout(timeout); abort.abort(); };
+  }, [loadAttempt]);
+
+  useEffect(() => {
+    if (!metadataLoaded || positioned) return;
+    const target = placed.find((item) => item.floor.kind === "floor") ?? placed[0];
+    if (window.matchMedia(DESKTOP_QUERY).matches) {
+      const height = viewport.current?.getBoundingClientRect().height ?? window.innerHeight;
+      setCamera((current) => constrain(current.scale, current.x,
+        target ? height / 2 - (target.top + frame.height * FLOOR_ANCHOR) * current.scale : 0));
+    } else if (target) {
+      if (viewport.current) viewport.current.scrollLeft = Math.max(0, (viewport.current.scrollWidth - viewport.current.clientWidth) / 2);
+      document.getElementById(target.floor.id)?.scrollIntoView({ block: "center", behavior: "instant" });
+    }
+    setPositioned(true);
+  }, [metadataLoaded, positioned, placed, constrain, frame.height]);
 
   const addFloor = useCallback(
     async (theme: string, effort: Effort): Promise<boolean> => {
@@ -252,10 +288,39 @@ export default function Tower() {
     travel.current = requestAnimationFrame(tick);
   }, []);
 
+  /** Velocity is in screen pixels/ms; exponential decay feels the same at
+   * different refresh rates. Share travel's cancellation with navigation. */
+  const coast = useCallback((vx: number, vy: number) => {
+    cancelAnimationFrame(travel.current);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let previous = performance.now();
+    let position = cameraRef.current;
+    const tick = (now: number) => {
+      const elapsed = Math.min(32, now - previous);
+      previous = now;
+      // Slow frames should not kill momentum or jump the camera ahead.
+      if (document.hidden) return;
+      const decay = Math.exp(-elapsed / 500);
+      const distance = 500 * (1 - decay);
+      const x = position.x + vx * distance;
+      const y = position.y + vy * distance;
+      position = constrain(position.scale, x, y);
+      vx = Math.abs(position.x - x) > 0.01 ? 0 : vx * decay;
+      vy = Math.abs(position.y - y) > 0.01 ? 0 : vy * decay;
+      cameraRef.current = position;
+      setCamera(position);
+      if (Math.hypot(vx, vy) > 0.02) travel.current = requestAnimationFrame(tick);
+    };
+    travel.current = requestAnimationFrame(tick);
+  }, [constrain]);
+
+  useEffect(() => () => cancelAnimationFrame(travel.current), [coast, desktop]);
+
   /** Keep the camera legal after resizing, adding floors, or changing artwork. */
   useEffect(() => {
     if (!desktop) return;
     const reframe = () => {
+      cancelAnimationFrame(travel.current);
       setViewportHeight(viewport.current?.getBoundingClientRect().height ?? 0);
       setCamera((current) => constrain(current.scale, current.x, current.y));
     };
@@ -266,6 +331,7 @@ export default function Tower() {
 
   const focusFloor = useCallback(
     (floor: Floor) => {
+      images.prioritize(placed.findIndex((item) => item.floor.id === floor.id));
       if (!desktop) {
         document.getElementById(floor.id)?.scrollIntoView({ behavior: "smooth", block: "center" });
         return;
@@ -281,7 +347,7 @@ export default function Tower() {
       );
       travelTo(target.y);
     },
-    [constrain, desktop, frame.height, placed, travelTo],
+    [constrain, desktop, frame.height, placed, travelTo, images.prioritize],
   );
 
   const activeFloorId = useMemo(() => {
@@ -394,6 +460,7 @@ export default function Tower() {
    */
   const peek = useCallback(
     (index: number) => {
+      cancelAnimationFrame(travel.current);
       const over = placed[index - 1]?.floor;
       if (!over) return;
       setPeeked((current) => (current === over.id ? null : over.id));
@@ -408,6 +475,7 @@ export default function Tower() {
     return (
       <button
         className={styles.peek}
+        data-floor-eye
         data-active={active || undefined}
         aria-label={`${active ? "Restore" : "Reveal"} ${placed[index].floor.displayName}`}
         aria-pressed={active}
@@ -430,14 +498,16 @@ export default function Tower() {
   const peekOpacity = Math.min(1, Math.max(0, (camera.scale - 0.32) / (0.55 - 0.32)));
 
   return (
-    <main className={styles.page}>
+    <main className={styles.page} aria-busy={!arrived} data-arriving={!arrived && revealing || undefined}>
       <div
         ref={viewport}
+        inert={!arrived}
         className={styles.viewport}
         onPointerDown={(event) => {
           if (!desktop || event.button !== 0) return;
           cancelAnimationFrame(travel.current);
-          drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+          drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, vx: 0, vy: 0,
+            samples: [{ x: event.clientX, y: event.clientY, time: event.timeStamp }] };
           dragged.current = false;
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
@@ -446,19 +516,35 @@ export default function Tower() {
           if (!start || start.pointerId !== event.pointerId) return;
           const dx = event.clientX - start.x;
           const dy = event.clientY - start.y;
-          if (Math.abs(dx) + Math.abs(dy) > 2) dragged.current = true;
-          drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+          if (Math.abs(dx) + Math.abs(dy) > 2) {
+            dragged.current = true;
+          }
+          const samples = [...start.samples, { x: event.clientX, y: event.clientY, time: event.timeStamp }];
+          // A short history avoids letting the final tiny movement erase a flick.
+          while (samples.length > 2 && samples[1].time < event.timeStamp - 120) samples.shift();
+          const first = samples[0];
+          const elapsed = Math.max(8, event.timeStamp - first.time);
+          drag.current = {
+            pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, samples,
+            vx: Math.max(-3, Math.min(3, (event.clientX - first.x) / elapsed)),
+            vy: Math.max(-3, Math.min(3, (event.clientY - first.y) / elapsed)),
+          };
           setCamera((current) => constrain(current.scale, current.x + dx, current.y + dy));
         }}
         onPointerUp={(event) => {
-          if (drag.current?.pointerId !== event.pointerId) return;
+          const release = drag.current;
+          if (release?.pointerId !== event.pointerId) return;
           drag.current = null;
           event.currentTarget.releasePointerCapture(event.pointerId);
+          const decay = Math.exp(-Math.max(0, event.timeStamp - release.time - 40) / 180);
+          if (dragged.current) coast(release.vx * decay, release.vy * decay);
         }}
         onPointerCancel={() => {
+          cancelAnimationFrame(travel.current);
           drag.current = null;
           dragged.current = false;
         }}
+        onLostPointerCapture={() => { drag.current = null; }}
         onClickCapture={(event) => {
           if (!dragged.current) return;
           event.stopPropagation();
@@ -519,12 +605,13 @@ export default function Tower() {
                   if (!desktop) peek(index);
                 }}
               >
-                <img
+                <FloorImage
+                  enabled={images.requested.has(`${item.floor.id}:${item.floor.status}`)}
+                  onSettled={() => images.markSettled(`${item.floor.id}:${item.floor.status}`)}
                   src="/construction-floor.png"
                   alt={`Under construction: ${item.floor.themePrompt}`}
                   width={frame.width}
                   height={frame.height}
-                  draggable={false}
                 />
                 <span className={styles.scan} />
                 {peekControl(index)}
@@ -545,12 +632,13 @@ export default function Tower() {
               {item.floor.status === "dead" ? (
                 <DeadFloor floor={item.floor} />
               ) : (
-                <img
+                <FloorImage
+                  enabled={images.requested.has(`${item.floor.id}:${item.floor.status}`)}
+                  onSettled={() => images.markSettled(`${item.floor.id}:${item.floor.status}`)}
                   src={`/api/floors/${item.floor.id}/image`}
                   alt={item.floor.displayName}
                   width={frame.width}
                   height={frame.height}
-                  draggable={false}
                 />
               )}
               {local && (
@@ -567,14 +655,14 @@ export default function Tower() {
         })}
       </div>
 
-      {placed.length === 0 && (
+      {metadataLoaded && placed.length === 0 && (
         <p className={styles.empty}>
-          No building yet. Add artwork to public/ or check that DATABASE_URL is set.
+          No floors yet. Be the first to add one.
         </p>
       )}
       </div>
 
-      <div className={styles.elevatorControls} data-controls>
+      <div className={styles.elevatorControls} data-controls inert={!arrived} style={{ visibility: arrived ? "visible" : "hidden" }}>
         <ControlPanel
           floors={floors}
           busy={busy}
@@ -606,7 +694,9 @@ export default function Tower() {
         />
       )}
 
-      <ZoomControl zoom={camera.scale} onChange={changeZoom} />
+      {arrived && <ZoomControl zoom={camera.scale} onChange={changeZoom} />}
+      {arrived && revealed?.kind === "floor" && <FloorPrompt floor={revealed} />}
+      {!arrived && <ElevatorArrival ordinals={metadataLoaded ? arrivalOrdinals : initialArrival.ordinals} hasRoof={metadataLoaded ? visible.some((floor) => floor.kind === "roof") : initialArrival.hasRoof} ready={images.ready} error={loadError} onRetry={retryArrival} onReveal={revealBuilding} onDone={finishArrival} />}
     </main>
   );
 }

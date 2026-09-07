@@ -104,6 +104,10 @@ repo diverges, the divergence is an open issue rather than a local rule.
 
 ## Status
 
+The visitor-experience branch adds an elevator arrival sequence, progressive
+viewport image loading, and original prompts alongside the eye/tap reveal.
+The loading panel mirrors the navigation's four-column floor layout (#48).
+
 **Last shipped**
 
 - The reference tile is no longer a storey. It is parked out of the numbering,
