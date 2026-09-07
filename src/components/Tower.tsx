@@ -45,7 +45,7 @@ function EyeIcon() {
   );
 }
 
-export default function Tower() {
+export default function Tower({ initialArrival }: { initialArrival: { ordinals: number[]; hasRoof: boolean } }) {
   const [metadataLoaded, setMetadataLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -668,7 +668,7 @@ export default function Tower() {
 
       {arrived && <ZoomControl zoom={camera.scale} onChange={changeZoom} />}
       {arrived && revealed?.kind === "floor" && <FloorPrompt floor={revealed} onClose={closePrompt} />}
-      {!arrived && <ElevatorArrival ordinals={arrivalOrdinals} hasRoof={visible.some((floor) => floor.kind === "roof")} ready={images.ready} error={loadError} onRetry={retryArrival} onReveal={revealBuilding} onDone={finishArrival} />}
+      {!arrived && <ElevatorArrival ordinals={metadataLoaded ? arrivalOrdinals : initialArrival.ordinals} hasRoof={metadataLoaded ? visible.some((floor) => floor.kind === "roof") : initialArrival.hasRoof} ready={images.ready} error={loadError} onRetry={retryArrival} onReveal={revealBuilding} onDone={finishArrival} />}
     </main>
   );
 }
