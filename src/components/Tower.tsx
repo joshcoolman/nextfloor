@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import styles from "./Tower.module.css";
 import CondemnedDialog from "./CondemnedDialog";
 import ControlPanel from "./ControlPanel";
+import ElevatorPanel from "./ElevatorPanel";
 import DeadFloor from "./DeadFloor";
 import ZoomControl, { DEFAULT_ZOOM, ZOOM_STEPS } from "./ZoomControl";
 import { useKeys } from "@/hooks/useKeys";
@@ -389,6 +390,7 @@ export default function Tower() {
         />
       )}
 
+      <ElevatorPanel floors={visible} />
       <ZoomControl zoom={zoom} onChange={changeZoom} />
     </main>
   );
