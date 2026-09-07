@@ -144,6 +144,37 @@ test("reveal shows the uncovered floor's literal original prompt", async ({ page
   await expect(card).toHaveCount(0);
 });
 
+test("outside clicks dismiss reveals, but card clicks and desktop drags do not", async ({ page, isMobile }) => {
+  await mockBuilding(page);
+  await page.goto("/");
+  await expect(page.locator('[aria-busy="false"]')).toBeVisible();
+  const open = async () => {
+    if (isMobile) {
+      const tile = await page.locator("#floor-30").boundingBox();
+      await page.touchscreen.tap(195, tile!.y + tile!.height - 10);
+    } else await page.getByRole("button", { name: "Reveal Room floor-30", exact: true }).click();
+  };
+  const card = page.getByRole("complementary", { name: "Original prompt for floor 30" });
+  await open();
+  await card.locator("p").click();
+  await expect(card).toBeVisible();
+  if (isMobile) await page.touchscreen.tap(20, 100);
+  else await page.mouse.click(20, 100);
+  await expect(card).toHaveCount(0);
+  await open();
+  await expect(card).toBeVisible();
+  if (!isMobile) {
+    await page.mouse.move(100, 500);
+    await page.mouse.down();
+    await page.mouse.move(100, 450, { steps: 8 });
+    await page.mouse.up();
+    await expect(card).toBeVisible();
+  }
+  await page.getByRole("button", { name: "Add a floor", exact: true }).click();
+  await expect(card).toHaveCount(0);
+  await expect(page.getByLabel("DESCRIBE ROOM")).toBeVisible();
+});
+
 test("suggestions rotate, fill drafts, hide while editing, and never submit", async ({ page, isMobile }) => {
   let creates = 0;
   page.on("request", (r) => { if (r.url().endsWith("/api/floors") && r.method() === "POST") creates++; });
