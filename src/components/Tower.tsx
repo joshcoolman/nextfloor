@@ -67,7 +67,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
   const [desktop, setDesktop] = useState(false);
   const [viewportHeight, setViewportHeight] = useState(0);
   const viewport = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ pointerId: number; x: number; y: number } | null>(null);
+  const drag = useRef<{ pointerId: number; x: number; y: number; time: number; vx: number; vy: number } | null>(null);
   const dragged = useRef(false);
   const cameraRef = useRef(camera);
   const travel = useRef(0);
@@ -117,8 +117,6 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
     cameraRef.current = camera;
   }, [camera]);
 
-  useEffect(() => () => cancelAnimationFrame(travel.current), []);
-
   useEffect(() => {
     const query = window.matchMedia(DESKTOP_QUERY);
     const update = () => setDesktop(query.matches);
@@ -163,6 +161,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
 
   const changeZoom = useCallback(
     (next: number, clientX?: number, clientY?: number) => {
+      cancelAnimationFrame(travel.current);
       const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
       setCamera((current) => {
         const box = viewport.current?.getBoundingClientRect();
@@ -290,10 +289,39 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
     travel.current = requestAnimationFrame(tick);
   }, []);
 
+  /** Velocity is in screen pixels/ms; exponential decay feels the same at
+   * different refresh rates. Share travel's cancellation with navigation. */
+  const coast = useCallback((vx: number, vy: number) => {
+    cancelAnimationFrame(travel.current);
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    let previous = performance.now();
+    let position = cameraRef.current;
+    const tick = (now: number) => {
+      const elapsed = now - previous;
+      previous = now;
+      // Do not jump ahead after a background tab or a long stalled frame.
+      if (elapsed > 100) return;
+      const decay = Math.exp(-elapsed / 500);
+      const distance = 500 * (1 - decay);
+      const x = position.x + vx * distance;
+      const y = position.y + vy * distance;
+      position = constrain(position.scale, x, y);
+      vx = Math.abs(position.x - x) > 0.01 ? 0 : vx * decay;
+      vy = Math.abs(position.y - y) > 0.01 ? 0 : vy * decay;
+      cameraRef.current = position;
+      setCamera(position);
+      if (Math.hypot(vx, vy) > 0.02) travel.current = requestAnimationFrame(tick);
+    };
+    travel.current = requestAnimationFrame(tick);
+  }, [constrain]);
+
+  useEffect(() => () => cancelAnimationFrame(travel.current), [coast, desktop]);
+
   /** Keep the camera legal after resizing, adding floors, or changing artwork. */
   useEffect(() => {
     if (!desktop) return;
     const reframe = () => {
+      cancelAnimationFrame(travel.current);
       setViewportHeight(viewport.current?.getBoundingClientRect().height ?? 0);
       setCamera((current) => constrain(current.scale, current.x, current.y));
     };
@@ -478,7 +506,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
         onPointerDown={(event) => {
           if (!desktop || event.button !== 0) return;
           cancelAnimationFrame(travel.current);
-          drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+          drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, vx: 0, vy: 0 };
           dragged.current = false;
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
@@ -488,18 +516,28 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
           const dx = event.clientX - start.x;
           const dy = event.clientY - start.y;
           if (Math.abs(dx) + Math.abs(dy) > 2) dragged.current = true;
-          drag.current = { pointerId: event.pointerId, x: event.clientX, y: event.clientY };
+          const elapsed = Math.max(8, event.timeStamp - start.time);
+          const weight = elapsed > 100 ? 1 : 0.65;
+          drag.current = {
+            pointerId: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp,
+            vx: Math.max(-3, Math.min(3, start.vx * (1 - weight) + dx / elapsed * weight)),
+            vy: Math.max(-3, Math.min(3, start.vy * (1 - weight) + dy / elapsed * weight)),
+          };
           setCamera((current) => constrain(current.scale, current.x + dx, current.y + dy));
         }}
         onPointerUp={(event) => {
-          if (drag.current?.pointerId !== event.pointerId) return;
+          const release = drag.current;
+          if (release?.pointerId !== event.pointerId) return;
           drag.current = null;
           event.currentTarget.releasePointerCapture(event.pointerId);
+          if (dragged.current && event.timeStamp - release.time < 100) coast(release.vx, release.vy);
         }}
         onPointerCancel={() => {
+          cancelAnimationFrame(travel.current);
           drag.current = null;
           dragged.current = false;
         }}
+        onLostPointerCapture={() => { drag.current = null; }}
         onClickCapture={(event) => {
           if (!dragged.current) return;
           event.stopPropagation();
