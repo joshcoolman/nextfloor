@@ -53,7 +53,8 @@ test("reveal shows the uncovered floor's literal original prompt", async ({ page
   const card = page.getByRole("complementary", { name: "Original prompt for floor 30" });
   await expect(card).toContainText("Original user prompt for floor-30. <b>This is literal text.</b>");
   await expect(card.locator("b")).toHaveCount(0);
-  await page.getByRole("button", { name: "Close floor prompt" }).click();
+  if (isMobile) await page.getByRole("button", { name: "Close floor prompt" }).click();
+  else await page.keyboard.press("Escape");
   await expect(card).toHaveCount(0);
 });
 
