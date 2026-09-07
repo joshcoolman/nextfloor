@@ -21,6 +21,60 @@ async function mockBuilding(page: Page, selected = floors, delay = 0) {
   await page.route("**/api/sponsorship", (route) => route.fulfill({ json: sponsored }));
 }
 
+test("elevator buttons exist before JavaScript or the client metadata fetch", async ({ browser, request }) => {
+  const response = await request.get("/api/floors");
+  expect(response.ok()).toBe(true);
+  const { floors: stored } = await response.json() as { floors: Floor[] };
+  const visible = stored.filter((floor) => !floor.isReference && (floor.status !== "dead" || floor.meta?.kept === true));
+  const ordinals = visible.filter((floor) => floor.kind === "floor").map((floor) => floor.ordinal);
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  try {
+    const page = await context.newPage();
+    await page.goto("http://localhost:3147/");
+    const loader = page.locator("[data-elevator-arrival]");
+    await expect(loader).toBeVisible();
+    await expect(loader.getByText("B1", { exact: true })).toBeVisible();
+    await expect(loader.getByText("R", { exact: true })).toHaveCount(visible.some((floor) => floor.kind === "roof") ? 1 : 0);
+    await expect(loader.locator("[data-floor-row]")).toHaveCount(Math.ceil(Math.max(0, ...ordinals) / 4));
+    for (const ordinal of ordinals) await expect(loader.getByText(String(ordinal), { exact: true })).toHaveCount(1);
+  } finally {
+    await context.close();
+  }
+});
+
+test("desktop drag coasts, slows, and stops when grabbed again", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Mobile keeps native scrolling.");
+  await mockBuilding(page);
+  await page.goto("/");
+  await expect(page.locator('[aria-busy="false"]')).toBeVisible();
+  const stack = page.locator('[style*="translate3d"]');
+  const y = () => stack.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m42);
+  await page.mouse.move(600, 550);
+  await page.mouse.down();
+  await page.mouse.move(600, 350, { steps: 12 });
+  await page.mouse.up();
+  const released = await y();
+  await page.waitForTimeout(150);
+  const early = await y();
+  await page.waitForTimeout(150);
+  const later = await y();
+  expect(released - early).toBeGreaterThan(10);
+  expect(early - later).toBeGreaterThan(1);
+  expect(early - later).toBeLessThan(released - early);
+  await page.mouse.down();
+  const stopped = await y();
+  await page.waitForTimeout(200);
+  expect(await y()).toBeCloseTo(stopped, 0);
+  await page.mouse.up();
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.mouse.down();
+  await page.mouse.move(600, 250, { steps: 8 });
+  await page.mouse.up();
+  const reduced = await y();
+  await page.waitForTimeout(200);
+  expect(await y()).toBeCloseTo(reduced, 0);
+});
+
 test("loader uses four-column rows, then reveals only arrival images", async ({ page, isMobile }) => {
   const requested: string[] = [];
   page.on("request", (r) => { if (r.url().endsWith("/image")) requested.push(r.url()); });
