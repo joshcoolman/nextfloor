@@ -94,6 +94,30 @@ test("loader uses four-column rows, then reveals only arrival images", async ({ 
   expect(errors).toEqual([]);
 });
 
+test("momentum survives a relaxed release and a slow animation frame", async ({ page, isMobile }) => {
+  test.skip(isMobile, "Desktop drag only.");
+  await mockBuilding(page);
+  await page.goto("/");
+  await expect(page.locator('[aria-busy="false"]')).toBeVisible();
+  const stack = page.locator('[style*="translate3d"]');
+  const y = () => stack.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m42);
+  await page.mouse.move(500, 550);
+  await page.mouse.down();
+  await page.mouse.move(500, 350, { steps: 12 });
+  await page.waitForTimeout(150);
+  await page.mouse.up();
+  const released = await y();
+  await page.waitForTimeout(100);
+  expect(released - await y()).toBeGreaterThan(10);
+  await page.evaluate(() => {
+    const until = performance.now() + 180;
+    while (performance.now() < until) { /* Simulate an expensive render. */ }
+  });
+  const afterStall = await y();
+  await page.waitForTimeout(100);
+  expect(afterStall - await y()).toBeGreaterThan(5);
+});
+
 test("reveal shows the uncovered floor's literal original prompt", async ({ page, isMobile }) => {
   await mockBuilding(page);
   await page.goto("/");
@@ -107,6 +131,14 @@ test("reveal shows the uncovered floor's literal original prompt", async ({ page
   const card = page.getByRole("complementary", { name: "Original prompt for floor 30" });
   await expect(card).toContainText("Original user prompt for floor-30. <b>This is literal text.</b>");
   await expect(card.locator("b")).toHaveCount(0);
+  if (!isMobile) {
+    const eye = await page.getByRole("button", { name: "Restore Room floor-30", exact: true }).boundingBox();
+    const panel = await card.boundingBox();
+    expect(eye).not.toBeNull();
+    expect(panel).not.toBeNull();
+    expect(panel!.x).toBeCloseTo(eye!.x + eye!.width + 12, 0);
+    expect(panel!.y).toBeCloseTo(eye!.y, 0);
+  }
   if (isMobile) await page.getByRole("button", { name: "Close floor prompt" }).click();
   else await page.keyboard.press("Escape");
   await expect(card).toHaveCount(0);
