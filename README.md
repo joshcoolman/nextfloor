@@ -106,21 +106,20 @@ repo diverges, the divergence is an open issue rather than a local rule.
 
 **Last shipped**
 
+- The reference tile is no longer a storey. It is parked out of the numbering,
+  so floor 1 is a slot like any other and the ground floor can be generated.
+- Transparency veins repaired in the static tiles, and the prompt now asks for a
+  `#222` outline on pure black -- a pure black outline is the same colour as the
+  background to the alpha key, which is what hollowed the lines out.
+- The projection angle is stated in the prompt: 1:2.76, about 20 degrees. Floors
+  drifted to textbook 2:1 isometric whenever the model stopped copying, and
+  "keep the camera angle" cannot correct a default it does not name.
+- Tiles encode as lossless WebP at ingest, verified pixel-identical. The live
+  building went 116 MB to 52 MB; `scripts/optimize-stored-tiles.mjs` is the
+  catch-up for anything generated earlier.
+- The basement is redrawn from a 2K generation and fitted to the frame.
 - Elevator panel: call buttons in building order, the floor you are looking at
-  lit, and gaps in the building drawn as dead sockets.
-- Click a floor to lift the one above it to 20% and drop it behind the tower, so
-  the back of a storey can be seen. Click again to put it back.
-- The short edit prompt is the default -- 494 words down to 190. The long one is
-  kept verbatim behind `EDIT_PROMPT=full`; every earlier tile was drawn to it.
-- The reference URL is checked before it is sent. A renamed Railway domain had
-  been handing the image model a 404 in place of the reference tile, which reads
-  as a content refusal and is not one.
-- New floors fill the lowest free number. A condemned floor never holds its
-  slot: keeping one is a look at the wreck, not a lease, and the next floor
-  built takes the number back.
-- Condemned floors are a choice rather than a fact -- nothing lands in the tower
-  unless the visitor asks to see it -- and are drawn from
-  `public/condemned-floor.png`.
+  lit, gaps drawn as dead sockets. Click a floor to lift the one above it.
 
 **Up next**
 
@@ -130,17 +129,15 @@ worked out. Issue #1 remains the overall spec.
 Known gaps, in order of how much they cost:
 
 - At 100% zoom the tower renders generated floors at 60.9%, and nearest-neighbour
-  resampling breaks the art up. Issue #23 has the measurements and three ways
-  out; the one-line CSS half of it blocks nothing.
-- Generated tiles come back 2912x1440 with the building filling ~99.5% of the
-  canvas against the static tiles' ~94-97%, so floors sit a few percent large.
-  `scripts/normalize-tile.mjs` is the machinery; only `condemned-floor.png` has
-  been through it.
-- Floor numbers are baked into the artwork, so floors already mislabelled by an
-  earlier deletion stay that way until they are regenerated.
+  resampling breaks the art up. #23 has the measurements and three ways out.
+- Floors 13, 14 and 15 were drawn before the projection angle was specified and
+  meet their neighbours at the wrong angle. Measurable, not repairable short of
+  regenerating them.
+- The light fringe around each tile's outer silhouette. Same root cause as the
+  veins; #42 would remove the need for the fix rather than make it.
 
 **Focus**
 
-Nothing is mid-flight. Generation is healthy -- floors are landing reliably and
-on theme -- so the next session picks from the `now` and `next` labels rather
-than resuming anything.
+Nothing is mid-flight. Generation is healthy -- seventeen floors, consistent
+shells, few failures. Open #35 and start the house-cleaning pass; it names the
+order and the reason for it.
