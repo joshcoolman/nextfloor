@@ -45,6 +45,15 @@ elevator door. Replace it with {{number}} -- same position, size, font, colour
 and weathering, with the reference's own number gone. It must be legible, and
 must appear nowhere else on the floor.
 
+PROJECTION -- THE COMMON DEFAULT IS WRONG HERE:
+This building is not drawn on a standard 2:1 isometric grid. Its horizontals are
+shallower. Every horizontal edge -- the front ledge, the floor line, the rear
+wall, the tops of the walls -- travels about 2.75 pixels sideways for every 1
+pixel it drops, roughly 20 degrees. A 2:1 grid at 26.6 degrees is the usual
+default and it does not stack with these floors: a tile drawn that way meets its
+neighbours at the wrong angle and the building visibly kinks at that storey.
+Measure the reference and match it.
+
 KEEP FROM THE REFERENCE:
 Everything structural. Camera angle, building dimensions, wall and floor
 thickness, left and right endpoints, pixel density, art direction, and the clean
@@ -63,10 +72,19 @@ Highly detailed isometric pixel art, 16/32-bit game aesthetic. Crisp deliberate
 pixel edges, consistent pixel density and object scale, rich interior lighting,
 tiny expressive characters. Dense but readable.
 
-OUTLINE:
-Draw a solid black outline, 2 to 3 pixels thick, around the whole outer
-silhouette of the floor where it meets the transparent surround. Hard and
-unbroken, no glow, no feathering, no gap. It is what makes a floor read as a
-solid object rather than a cutout pasted onto the page.
+BACKGROUND AND OUTLINE:
+Everything around the building is solid pure black, #000000, edge to edge. No
+gradient, no vignette, no glow, no checkerboard.
+
+Draw the outline of the building in #222222 -- a very dark grey, not black --
+2 to 3 pixels thick, around the whole outer silhouette where it meets that black
+surround. Hard and unbroken, no feathering, no gap.
+
+The outline reads as black to the eye and is what makes a floor look like a solid
+object rather than a cutout. The reason it is #222222 rather than #000000 is
+mechanical: the background is keyed out by flooding inward from the edge, and a
+pure black outline on a pure black background is the same colour, so the flood
+runs down every dark line in the drawing and hollows it out. Two shades apart is
+invisible to a viewer and a wall to the fill.
 
 {{content}}
