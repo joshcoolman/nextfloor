@@ -45,6 +45,15 @@ elevator door. Replace it with {{number}} -- same position, size, font, colour
 and weathering, with the reference's own number gone. It must be legible, and
 must appear nowhere else on the floor.
 
+PROJECTION -- THE COMMON DEFAULT IS WRONG HERE:
+This building is not drawn on a standard 2:1 isometric grid. Its horizontals are
+shallower. Every horizontal edge -- the front ledge, the floor line, the rear
+wall, the tops of the walls -- travels about 2.75 pixels sideways for every 1
+pixel it drops, roughly 20 degrees. A 2:1 grid at 26.6 degrees is the usual
+default and it does not stack with these floors: a tile drawn that way meets its
+neighbours at the wrong angle and the building visibly kinks at that storey.
+Measure the reference and match it.
+
 KEEP FROM THE REFERENCE:
 Everything structural. Camera angle, building dimensions, wall and floor
 thickness, left and right endpoints, pixel density, art direction, and the clean
