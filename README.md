@@ -106,33 +106,41 @@ repo diverges, the divergence is an open issue rather than a local rule.
 
 **Last shipped**
 
-- New floors fill the lowest free number first -- gaps left by deletions, and
-  slots held by unkept condemned floors -- and only grow the building when the
-  sequence is contiguous.
-- The theme interpreter is told that content is mediated downstream, so it
-  lightens wording rather than dropping the idea when IP would be refused.
-- Condemned floors: a failed build is now a choice, not a fact. Nothing is added
-  to the tower unless the visitor picks "leave it standing"; the wreck is drawn
-  from `public/condemned-floor.png`.
-- One dialog with panes (add / floors / keys) behind a single round button; the control rail is gone.
-- Background queue: a floor claims its slot and returns immediately, generating in `after()`. A refresh loses nothing.
-- Checkerboard detection by orphan-pixel fraction, rejected and retried once, then a dead floor.
+- Elevator panel: call buttons in building order, the floor you are looking at
+  lit, and gaps in the building drawn as dead sockets.
+- Click a floor to lift the one above it to 20% and drop it behind the tower, so
+  the back of a storey can be seen. Click again to put it back.
+- The short edit prompt is the default -- 494 words down to 190. The long one is
+  kept verbatim behind `EDIT_PROMPT=full`; every earlier tile was drawn to it.
+- The reference URL is checked before it is sent. A renamed Railway domain had
+  been handing the image model a 404 in place of the reference tile, which reads
+  as a content refusal and is not one.
+- New floors fill the lowest free number. A condemned floor never holds its
+  slot: keeping one is a look at the wreck, not a lease, and the next floor
+  built takes the number back.
+- Condemned floors are a choice rather than a fact -- nothing lands in the tower
+  unless the visitor asks to see it -- and are drawn from
+  `public/condemned-floor.png`.
 
 **Up next**
 
-Issue #4 is the next piece of work: canvas-style pan and zoom, with a camera
-that cannot lose the building. Issue #1 remains the overall spec.
+The `now` label carries what to do next; `focus` is what is actively being
+worked out. Issue #1 remains the overall spec.
 
 Known gaps, in order of how much they cost:
 
+- At 100% zoom the tower renders generated floors at 60.9%, and nearest-neighbour
+  resampling breaks the art up. Issue #23 has the measurements and three ways
+  out; the one-line CSS half of it blocks nothing.
 - Generated tiles come back 2912x1440 with the building filling ~99.5% of the
-  canvas; the static tiles are 1774x887 filling ~94-97%. Floors therefore sit a
-  few percent large with a different vertical offset and do not line up
-  precisely. The fix is normalising each tile's bounding box to the reference's.
+  canvas against the static tiles' ~94-97%, so floors sit a few percent large.
+  `scripts/normalize-tile.mjs` is the machinery; only `condemned-floor.png` has
+  been through it.
 - Floor numbers are baked into the artwork, so floors already mislabelled by an
   earlier deletion stay that way until they are regenerated.
 
 **Focus**
 
-Open issue #4 and build the canvas. The camera spec is written there and is the
-thing to implement, not to redesign.
+Nothing is mid-flight. Generation is healthy -- floors are landing reliably and
+on theme -- so the next session picks from the `now` and `next` labels rather
+than resuming anything.
