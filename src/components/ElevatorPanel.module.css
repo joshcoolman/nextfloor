@@ -39,15 +39,20 @@
   background: rgba(255, 255, 255, 0.06);
 }
 
-/* An empty socket: a floor number with nothing behind it. Dim rather than
-   hidden, so the building's gaps are visible in the panel. */
-.call:disabled {
-  border-color: var(--edge);
-  color: #2e2e2e;
-  cursor: not-allowed;
+/* The floor you are looking at. A lit lamp, not a selected control: the panel
+   reports where you are rather than remembering what you last pressed. */
+.call[data-lit] {
+  color: var(--ink);
+  border-color: var(--ink);
+  box-shadow: 0 0 9px rgba(255, 255, 255, 0.28);
 }
 
-.pad {
+/* A number with no floor behind it -- a gap in the building, or a position past
+   the top of it. Present so the panel stays a true map, and inert in every way:
+   no hover, no press, never lit. */
+.socket {
   width: 30px;
   height: 30px;
+  border-radius: 50%;
+  border: 1px solid #1e1e1e;
 }
