@@ -12,6 +12,10 @@ import { useKeys } from "@/hooks/useKeys";
 import { frameOf, placeFloors, towerHeight } from "@/lib/building/layout";
 import { TILE } from "@/lib/building/styleGuide";
 import type { Effort, Floor } from "@/lib/ai/types";
+import ElevatorArrival from "./elevator-arrival/elevator-arrival";
+import FloorPrompt from "./floor-prompt/floor-prompt";
+import FloorImage from "./floor-image/floor-image";
+import { useTowerImages } from "@/hooks/useTowerImages";
 
 /** Faint rather than gone: the lifted floor still reads as a floor. */
 const PEEK_OPACITY = 0.2;
@@ -41,6 +45,13 @@ function EyeIcon() {
 }
 
 export default function Tower() {
+  const [metadataLoaded, setMetadataLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const [positioned, setPositioned] = useState(false);
+  const [arrived, setArrived] = useState(false);
+  const finishArrival = useCallback(() => setArrived(true), []);
+  const retryArrival = useCallback(() => { setLoadError(null); setLoadAttempt((n) => n + 1); }, []);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [serverKeys, setServerKeys] = useState(false);
   const [local, setLocal] = useState(false);
@@ -91,6 +102,10 @@ export default function Tower() {
   /** How much each tile rides up over the one below it. */
   const overlap = frame.height - frame.pitch;
   const contentHeight = towerHeight(placed.length, frame);
+  const images = useTowerImages(placed, frame.pitch, camera.scale, camera.y, positioned);
+  const closePrompt = useCallback(() => setPeeked(null), []);
+  const revealed = peeked ? placed[placed.findIndex((item) => item.floor.id === peeked) + 1]?.floor : null;
+  const arrivalOrdinals = useMemo(() => visible.filter((floor) => floor.kind === "floor").map((floor) => floor.ordinal).sort((a, b) => a - b), [visible]);
 
   useEffect(() => {
     setForceKeys(new URLSearchParams(window.location.search).has("keys"));
@@ -165,15 +180,35 @@ export default function Tower() {
   );
 
   useEffect(() => {
-    fetch("/api/floors")
-      .then((response) => response.json())
+    const abort = new AbortController();
+    const timeout = setTimeout(() => abort.abort(), 20000);
+    fetch("/api/floors", { signal: abort.signal })
+      .then((response) => { if (!response.ok) throw new Error(); return response.json(); })
       .then((data) => {
+        if (!Array.isArray(data.floors)) throw new Error();
         setFloors(data.floors);
         setServerKeys(data.serverKeys);
         setLocal(Boolean(data.local));
+        setMetadataLoaded(true);
       })
-      .catch(() => setError("Could not reach the building. Is DATABASE_URL set?"));
-  }, []);
+      .catch(() => { if (!abort.signal.aborted || !ignore) setLoadError("Could not reach the building."); })
+      .finally(() => clearTimeout(timeout));
+    let ignore = false;
+    return () => { ignore = true; clearTimeout(timeout); abort.abort(); };
+  }, [loadAttempt]);
+
+  useEffect(() => {
+    if (!metadataLoaded || positioned) return;
+    const target = placed.find((item) => item.floor.kind === "floor") ?? placed[0];
+    if (window.matchMedia(DESKTOP_QUERY).matches) {
+      const height = viewport.current?.getBoundingClientRect().height ?? window.innerHeight;
+      setCamera((current) => constrain(current.scale, current.x,
+        target ? height / 2 - (target.top + frame.height * FLOOR_ANCHOR) * current.scale : 0));
+    } else if (target) {
+      document.getElementById(target.floor.id)?.scrollIntoView({ block: "center", behavior: "instant" });
+    }
+    setPositioned(true);
+  }, [metadataLoaded, positioned, placed, constrain, frame.height]);
 
   const addFloor = useCallback(
     async (theme: string, effort: Effort): Promise<boolean> => {
@@ -266,6 +301,8 @@ export default function Tower() {
 
   const focusFloor = useCallback(
     (floor: Floor) => {
+      setPeeked(null);
+      images.prioritize(placed.findIndex((item) => item.floor.id === floor.id));
       if (!desktop) {
         document.getElementById(floor.id)?.scrollIntoView({ behavior: "smooth", block: "center" });
         return;
@@ -281,7 +318,7 @@ export default function Tower() {
       );
       travelTo(target.y);
     },
-    [constrain, desktop, frame.height, placed, travelTo],
+    [constrain, desktop, frame.height, placed, travelTo, images.prioritize],
   );
 
   const activeFloorId = useMemo(() => {
@@ -430,9 +467,10 @@ export default function Tower() {
   const peekOpacity = Math.min(1, Math.max(0, (camera.scale - 0.32) / (0.55 - 0.32)));
 
   return (
-    <main className={styles.page}>
+    <main className={styles.page} aria-busy={!arrived} data-arriving={!arrived && images.ready || undefined}>
       <div
         ref={viewport}
+        inert={!arrived}
         className={styles.viewport}
         onPointerDown={(event) => {
           if (!desktop || event.button !== 0) return;
@@ -519,12 +557,13 @@ export default function Tower() {
                   if (!desktop) peek(index);
                 }}
               >
-                <img
+                <FloorImage
+                  enabled={images.requested.has(`${item.floor.id}:${item.floor.status}`)}
+                  onSettled={() => images.markSettled(`${item.floor.id}:${item.floor.status}`)}
                   src="/construction-floor.png"
                   alt={`Under construction: ${item.floor.themePrompt}`}
                   width={frame.width}
                   height={frame.height}
-                  draggable={false}
                 />
                 <span className={styles.scan} />
                 {peekControl(index)}
@@ -545,12 +584,13 @@ export default function Tower() {
               {item.floor.status === "dead" ? (
                 <DeadFloor floor={item.floor} />
               ) : (
-                <img
+                <FloorImage
+                  enabled={images.requested.has(`${item.floor.id}:${item.floor.status}`)}
+                  onSettled={() => images.markSettled(`${item.floor.id}:${item.floor.status}`)}
                   src={`/api/floors/${item.floor.id}/image`}
                   alt={item.floor.displayName}
                   width={frame.width}
                   height={frame.height}
-                  draggable={false}
                 />
               )}
               {local && (
@@ -567,14 +607,14 @@ export default function Tower() {
         })}
       </div>
 
-      {placed.length === 0 && (
+      {metadataLoaded && placed.length === 0 && (
         <p className={styles.empty}>
-          No building yet. Add artwork to public/ or check that DATABASE_URL is set.
+          No floors yet. Be the first to add one.
         </p>
       )}
       </div>
 
-      <div className={styles.elevatorControls} data-controls>
+      <div className={styles.elevatorControls} data-controls inert={!arrived} style={{ visibility: arrived ? "visible" : "hidden" }}>
         <ControlPanel
           floors={floors}
           busy={busy}
@@ -606,7 +646,9 @@ export default function Tower() {
         />
       )}
 
-      <ZoomControl zoom={camera.scale} onChange={changeZoom} />
+      {arrived && <ZoomControl zoom={camera.scale} onChange={changeZoom} />}
+      {arrived && revealed?.kind === "floor" && <FloorPrompt floor={revealed} onClose={closePrompt} />}
+      {!arrived && <ElevatorArrival ordinals={arrivalOrdinals} ready={images.ready} error={loadError} onRetry={retryArrival} onDone={finishArrival} />}
     </main>
   );
 }
