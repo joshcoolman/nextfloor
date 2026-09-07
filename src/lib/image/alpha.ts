@@ -13,22 +13,20 @@ import sharp from "sharp";
 /**
  * How far a pixel may differ from a sampled background colour, per channel.
  *
- * Tried in order, tightest first, because tolerance costs edge quality. The
- * background is asked to be flat black and usually is, and against a flat
- * background a tolerance of 2 clears just as much of it -- 45.7% of the tile
- * against 46.1% at 16 -- while leaving a far darker edge: mean luminance 16
- * rather than 35, and no light rim at all.
+ * The background is asked to be flat black and the outline #222222, which are 34
+ * levels apart, so anything under about 25 stops at the outline rather than
+ * eating through it. 20 leaves margin for encoder noise on both sides.
  *
- * That is the whole point. What survives the fill is the blend between the
- * background and the #222 outline, and a tight tolerance keeps those pixels
- * dark, where they read as part of the outline. A loose one eats into the
- * outline and leaves the lighter blend behind it, which reads as a halo.
+ * Tolerance is not free: what survives the fill is the blend between background
+ * and outline, and every extra level consumes another band of it and exposes
+ * something lighter behind. That matters most on the roughly two thirds of the
+ * silhouette where the model draws no outline at all and the fill runs into
+ * artwork.
  *
- * The wider steps are the fallback for a background that is not flat -- a
- * checkerboard or a gradient -- where a tight tolerance would stop the fill
- * almost immediately.
+ * 40 is the fallback for a background that is not flat -- a checkerboard or a
+ * gradient -- where a tight tolerance stops the fill almost immediately.
  */
-const TOLERANCES = [2, 8, 20, 40];
+const TOLERANCES = [20, 40];
 
 /**
  * A tile whose background has been keyed lands somewhere around a third
