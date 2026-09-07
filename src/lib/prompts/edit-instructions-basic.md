@@ -63,10 +63,19 @@ Highly detailed isometric pixel art, 16/32-bit game aesthetic. Crisp deliberate
 pixel edges, consistent pixel density and object scale, rich interior lighting,
 tiny expressive characters. Dense but readable.
 
-OUTLINE:
-Draw a solid black outline, 2 to 3 pixels thick, around the whole outer
-silhouette of the floor where it meets the transparent surround. Hard and
-unbroken, no glow, no feathering, no gap. It is what makes a floor read as a
-solid object rather than a cutout pasted onto the page.
+BACKGROUND AND OUTLINE:
+Everything around the building is solid pure black, #000000, edge to edge. No
+gradient, no vignette, no glow, no checkerboard.
+
+Draw the outline of the building in #222222 -- a very dark grey, not black --
+2 to 3 pixels thick, around the whole outer silhouette where it meets that black
+surround. Hard and unbroken, no feathering, no gap.
+
+The outline reads as black to the eye and is what makes a floor look like a solid
+object rather than a cutout. The reason it is #222222 rather than #000000 is
+mechanical: the background is keyed out by flooding inward from the edge, and a
+pure black outline on a pure black background is the same colour, so the flood
+runs down every dark line in the drawing and hollows it out. Two shades apart is
+invisible to a viewer and a wall to the fill.
 
 {{content}}
