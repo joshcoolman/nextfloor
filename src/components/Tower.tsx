@@ -105,17 +105,6 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
   const overlap = frame.height - frame.pitch;
   const contentHeight = towerHeight(placed.length, frame);
   const images = useTowerImages(placed, frame.pitch, camera.scale, camera.y, positioned);
-  const closePrompt = useCallback(() => setPeeked(null), []);
-  useEffect(() => {
-    if (!peeked) return;
-    // Mobile scrolls the document vertically; scrolling the prompt itself
-    // must remain available for reading long descriptions.
-    const dismissOnScroll = (event: Event) => {
-      if (event.target === document || event.target === window) closePrompt();
-    };
-    window.addEventListener("scroll", dismissOnScroll);
-    return () => window.removeEventListener("scroll", dismissOnScroll);
-  }, [peeked, closePrompt]);
   const revealed = peeked ? placed[placed.findIndex((item) => item.floor.id === peeked) + 1]?.floor : null;
   const arrivalOrdinals = useMemo(() => visible.filter((floor) => floor.kind === "floor").map((floor) => floor.ordinal).sort((a, b) => a - b), [visible]);
 
@@ -171,7 +160,6 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
 
   const changeZoom = useCallback(
     (next: number, clientX?: number, clientY?: number) => {
-      closePrompt();
       cancelAnimationFrame(travel.current);
       const scale = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next));
       setCamera((current) => {
@@ -188,7 +176,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
       });
       rememberZoom(scale);
     },
-    [constrain, rememberZoom, closePrompt],
+    [constrain, rememberZoom],
   );
 
   useEffect(() => {
@@ -257,7 +245,6 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
     if (!element || !desktop) return;
     const onWheel = (event: WheelEvent) => {
       event.preventDefault();
-      closePrompt();
       cancelAnimationFrame(travel.current);
       setCamera((current) => {
         const box = element.getBoundingClientRect();
@@ -278,7 +265,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
     };
     element.addEventListener("wheel", onWheel, { passive: false });
     return () => element.removeEventListener("wheel", onWheel);
-  }, [constrain, desktop, rememberZoom, closePrompt]);
+  }, [constrain, desktop, rememberZoom]);
 
   const travelTo = useCallback((y: number) => {
     cancelAnimationFrame(travel.current);
@@ -344,7 +331,6 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
 
   const focusFloor = useCallback(
     (floor: Floor) => {
-      setPeeked(null);
       images.prioritize(placed.findIndex((item) => item.floor.id === floor.id));
       if (!desktop) {
         document.getElementById(floor.id)?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -512,16 +498,9 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
   const peekOpacity = Math.min(1, Math.max(0, (camera.scale - 0.32) / (0.55 - 0.32)));
 
   return (
-    <main className={styles.page} aria-busy={!arrived} data-arriving={!arrived && revealing || undefined}
-      onClick={(event) => {
-        // Drag clicks are already suppressed by the viewport. Bubble after
-        // floor taps so an outside tap closes instead of reopening the reveal.
-        if (peeked && !(event.target as Element).closest("[data-floor-eye], [data-floor-prompt]")) closePrompt();
-      }}
-    >
+    <main className={styles.page} aria-busy={!arrived} data-arriving={!arrived && revealing || undefined}>
       <div
         ref={viewport}
-        onScroll={closePrompt}
         inert={!arrived}
         className={styles.viewport}
         onPointerDown={(event) => {
@@ -539,7 +518,6 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
           const dy = event.clientY - start.y;
           if (Math.abs(dx) + Math.abs(dy) > 2) {
             dragged.current = true;
-            closePrompt();
           }
           const samples = [...start.samples, { x: event.clientX, y: event.clientY, time: event.timeStamp }];
           // A short history avoids letting the final tiny movement erase a flick.
@@ -717,7 +695,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
       )}
 
       {arrived && <ZoomControl zoom={camera.scale} onChange={changeZoom} />}
-      {arrived && revealed?.kind === "floor" && <FloorPrompt floor={revealed} onClose={closePrompt} />}
+      {arrived && revealed?.kind === "floor" && <FloorPrompt floor={revealed} />}
       {!arrived && <ElevatorArrival ordinals={metadataLoaded ? arrivalOrdinals : initialArrival.ordinals} hasRoof={metadataLoaded ? visible.some((floor) => floor.kind === "roof") : initialArrival.hasRoof} ready={images.ready} error={loadError} onRetry={retryArrival} onReveal={revealBuilding} onDone={finishArrival} />}
     </main>
   );
