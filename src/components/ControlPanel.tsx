@@ -33,8 +33,8 @@ interface Props {
  *
  * Everything used to live in a rail pinned down the right edge, permanently
  * covering a slice of the building for controls that are used occasionally.
- * A single round button is the only lasting chrome; the panes switch inside one
- * dialog rather than stacking dialogs on top of each other.
+ * The responsive trigger is the only lasting chrome; the panes switch inside
+ * one dialog rather than stacking dialogs on top of each other.
  */
 export default function ControlPanel({
   floors,
@@ -85,7 +85,8 @@ export default function ControlPanel({
       title="Add a floor"
       aria-label="Add a floor"
     >
-      <span className={styles.plus}>+</span>
+      <span className={styles.desktopLabel}>Add floor</span>
+      <span className={styles.mobilePlus} aria-hidden="true">+</span>
       {pending > 0 && <span className={styles.badge}>{pending}</span>}
     </button>
   );

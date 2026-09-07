@@ -1,15 +1,17 @@
-/* The only permanent chrome over the building. */
+/* On desktop this belongs to the elevator stack and reads as a conventional
+   action. Phones retain the compact floating action button. */
 .add {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 30;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
+  position: relative;
+  width: 100%;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 0;
   background: var(--ground);
-  border: 1px solid var(--ink-faint);
+  border: 1px solid var(--edge);
   color: var(--ink);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   transition: border-color 140ms ease, background 140ms ease;
 }
 
@@ -18,7 +20,8 @@
   border-color: var(--ink);
 }
 
-.plus {
+.mobilePlus {
+  display: none;
   font-size: 24px;
   line-height: 1;
 }
@@ -102,4 +105,28 @@
 .close:hover {
   color: var(--ink);
   background: rgba(255, 255, 255, 0.06);
+}
+
+@media (max-width: 640px) {
+  .add {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 30;
+    width: 52px;
+    min-height: 52px;
+    padding: 0;
+    border-radius: 50%;
+    border-color: var(--ink-faint);
+    font-size: inherit;
+    letter-spacing: normal;
+  }
+
+  .desktopLabel {
+    display: none;
+  }
+
+  .mobilePlus {
+    display: inline;
+  }
 }

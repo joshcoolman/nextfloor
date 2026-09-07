@@ -12,8 +12,11 @@ interface Props {
 }
 
 export default function ZoomControl({ zoom, onChange }: Props) {
-  const index = ZOOM_STEPS.indexOf(zoom);
-  const at = index === -1 ? ZOOM_STEPS.indexOf(DEFAULT_ZOOM) : index;
+  const at = ZOOM_STEPS.reduce(
+    (closest, step, index) =>
+      Math.abs(step - zoom) < Math.abs(ZOOM_STEPS[closest] - zoom) ? index : closest,
+    0,
+  );
 
   return (
     <div className={styles.control} data-controls>
