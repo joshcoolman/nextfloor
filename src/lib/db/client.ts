@@ -44,6 +44,33 @@ create table if not exists floor_images (
   mime  text not null,
   bytes bytea not null
 );
+
+-- No foreign key to floors: demolition must never refund generation.
+create table if not exists generation_requests (
+  id uuid primary key,
+  fingerprint text not null,
+  floor_id uuid not null,
+  created_at timestamptz not null default now()
+);
+create table if not exists sponsored_reservations (
+  id uuid primary key,
+  kind text not null check (kind in ('floor', 'suggestion')),
+  reserved integer not null check (reserved >= 0),
+  cost integer check (cost >= 0 and cost <= reserved),
+  created_at timestamptz not null default now(),
+  finished_at timestamptz
+);
+create index if not exists sponsored_created_idx on sponsored_reservations(created_at);
+create index if not exists sponsored_unfinished_idx on sponsored_reservations(created_at) where finished_at is null;
+create table if not exists floor_suggestions (
+  singleton boolean primary key default true check (singleton),
+  batch_id uuid,
+  fingerprint text,
+  suggestions jsonb not null default '[]',
+  generated_at timestamptz,
+  attempted_at timestamptz,
+  reservation_id uuid
+);
 `;
 
 /** Idempotent, runs once per process. Keeps deploys to "push and go". */

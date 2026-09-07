@@ -2,6 +2,7 @@
 import { TILE } from "@/lib/building/styleGuide";
 import { RefusalError } from "../errors";
 import type { ImageProvider, Reference } from "./types";
+import { assertBeforeDeadline, POLICY } from "@/lib/sponsorship/policy";
 
 const BASE = "https://fal.run";
 
@@ -39,8 +40,9 @@ export const fal: ImageProvider = {
   name: "fal",
   outputFormat: "png",
 
-  async generate(apiKey: string, prompt: string, reference: Reference | null) {
-    const model = reference ? EDIT_MODEL : SEED_MODEL;
+  async generate(apiKey: string, prompt: string, reference: Reference | null, funding) {
+    if (funding && !reference) throw new Error("The reference artwork is unavailable. Sponsored construction cannot start.");
+    const model = funding ? POLICY.imageModel : reference ? EDIT_MODEL : SEED_MODEL;
     const input: Record<string, unknown> = {
       // The edit prompt already carries the reference contract in full.
       prompt,
@@ -61,10 +63,16 @@ export const fal: ImageProvider = {
       ];
     }
 
+    if (funding) {
+      assertBeforeDeadline(funding);
+      // Keep the ceiling even on failures; a lost response may still be billable.
+      funding.cost += POLICY.imageCeiling;
+    }
     const response = await fetch(`${BASE}/${model}`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Key ${apiKey}` },
       body: JSON.stringify(input),
+      signal: AbortSignal.timeout(180_000),
     });
 
     const raw = await response.text();

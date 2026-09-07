@@ -8,6 +8,7 @@ import DeleteFloors from "./DeleteFloors";
 import KeyPanel from "./KeyPanel";
 import type { KeyPair } from "@/hooks/useKeys";
 import type { Effort, Floor } from "@/lib/ai/types";
+import type { SponsoredAvailability } from "@/lib/sponsorship/types";
 
 type Pane = "add" | "floors" | "keys";
 
@@ -22,6 +23,8 @@ interface Props {
   keys: KeyPair;
   onKeysChange: (keys: KeyPair) => void;
   serverKeys: boolean;
+  sponsored: SponsoredAvailability;
+  onOpen: () => void;
   showKeys: boolean;
   local: boolean;
   /** Bumped to reopen the dialog on the add pane, e.g. after a condemned floor. */
@@ -47,12 +50,16 @@ export default function ControlPanel({
   keys,
   onKeysChange,
   serverKeys,
+  sponsored,
+  onOpen,
   showKeys,
   local,
   reopen = 0,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [pane, setPane] = useState<Pane>("add");
+
+  useEffect(() => { if (open) onOpen(); }, [open, onOpen]);
 
   useEffect(() => {
     if (reopen === 0) return;
@@ -79,7 +86,7 @@ export default function ControlPanel({
     <button
       className={styles.add}
       onClick={() => {
-        setPane(ready ? "add" : "keys");
+        setPane("add");
         setOpen(true);
       }}
       title="Add a floor"
@@ -123,6 +130,8 @@ export default function ControlPanel({
               pending={pending}
               disabled={!ready}
               error={error}
+              sponsored={sponsored}
+              usingOwnKeys={Boolean(keys.anthropic || keys.fal)}
               onSubmit={onSubmit}
               onDone={() => setOpen(false)}
             />

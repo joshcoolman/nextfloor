@@ -146,3 +146,6 @@ vite.config.ts.timestamp-*
 public/*-optimized.png
 public/new-*.png
 public/nextfloor-*test*.png
+.playwright/
+playwright-report/
+test-results/

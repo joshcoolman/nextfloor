@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { PoolClient } from "pg";
 import { ensureSchema, pool } from "./client";
 import type { Floor, FloorKind, FloorSpec, FloorStatus } from "@/lib/ai/types";
 
@@ -190,7 +191,7 @@ const FREE_ORDINAL = `
   select min(n)::double precision
     from generate_series(
            1,
-           (select coalesce(max(ordinal), 0)::int + 1 from floors where kind = 'floor')
+           (select greatest(coalesce(max(ordinal), 0), 0)::int + 1 from floors where kind = 'floor' and not is_reference)
          ) as n
    where not exists (
      select 1 from floors f
@@ -212,11 +213,11 @@ const FREE_ORDINAL = `
  * The row exists from the moment the slot is claimed, so a pending floor
  * survives a browser refresh and shows as under construction.
  */
-export async function reserveFloor(theme: string): Promise<Floor> {
+export async function reserveFloor(theme: string, transaction?: PoolClient): Promise<Floor> {
   await ensureSchema();
-  const client = await pool().connect();
+  const client = transaction ?? await pool().connect();
   try {
-    await client.query("begin");
+    if (!transaction) await client.query("begin");
     await client.query("select pg_advisory_xact_lock(hashtext('nextfloor:ordinal'))");
     // Clear the wreck first if this slot holds one. A condemned floor is
     // always temporary: it stands until something is built over it.
@@ -230,13 +231,13 @@ export async function reserveFloor(theme: string): Promise<Floor> {
        returning *`,
       [randomUUID(), theme, theme.slice(0, 40)],
     );
-    await client.query("commit");
+    if (!transaction) await client.query("commit");
     return toFloor(rows[0]);
   } catch (error) {
-    await client.query("rollback");
+    if (!transaction) await client.query("rollback");
     throw error;
   } finally {
-    client.release();
+    if (!transaction) client.release();
   }
 }
 
@@ -274,37 +275,18 @@ export async function completeFloor(
   return rows[0] ? toFloor(rows[0]) : null;
 }
 
-/**
- * When this process started. Generation runs in `after()`, inside this process,
- * so anything left pending from before this moment is definitionally orphaned:
- * a restart, a redeploy or a hot reload killed the work that would have
- * finished it. No waiting required to know that.
- */
-const BOOTED_AT = new Date();
-
-/**
- * Turns floors that will never finish into dead floors.
- *
- * Two cases, and the first is exact rather than a guess:
- *   - pending from before this process booted: the work is gone.
- *   - pending far longer than a generation can take: hung inside this process.
- *
- * A generation is one or two image calls and one or two spec calls, so ten
- * minutes is already several times the realistic worst case.
- */
+/** Expire stalled construction after ten minutes. A process boot is not proof
+ * of abandonment: another replica may still own the work. Budget reservations
+ * are independent and are never refunded by this sweep. */
 export async function sweepStalePending(minutes = 10): Promise<number> {
   await ensureSchema();
   const { rowCount } = await pool().query(
     `update floors
         set status = 'dead',
-            failure_reason = case
-              when created_at < $2
-                then 'Construction stopped: the server restarted before this floor was finished.'
-              else 'Construction stalled and was abandoned.'
-            end
+            failure_reason = 'Construction stalled and was abandoned.'
       where status = 'pending'
-        and (created_at < $2 or created_at < now() - ($1 || ' minutes')::interval)`,
-    [String(minutes), BOOTED_AT.toISOString()],
+        and created_at < now() - ($1 || ' minutes')::interval`,
+    [String(minutes)],
   );
   return rowCount ?? 0;
 }

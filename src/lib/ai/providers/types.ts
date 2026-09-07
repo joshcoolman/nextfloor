@@ -18,9 +18,11 @@ export interface Reference {
   url: string | null;
 }
 
+import type { Funding } from "@/lib/sponsorship/policy";
+
 export interface ImageProvider {
   name: string;
   /** What this provider can actually emit. Not every API offers a choice. */
   outputFormat: "png" | "jpeg";
-  generate(apiKey: string, prompt: string, reference: Reference | null): Promise<GeneratedTile>;
+  generate(apiKey: string, prompt: string, reference: Reference | null, funding?: Funding): Promise<GeneratedTile>;
 }

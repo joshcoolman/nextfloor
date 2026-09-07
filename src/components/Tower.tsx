@@ -16,6 +16,7 @@ import ElevatorArrival from "./elevator-arrival/elevator-arrival";
 import FloorPrompt from "./floor-prompt/floor-prompt";
 import FloorImage from "./floor-image/floor-image";
 import { useTowerImages } from "@/hooks/useTowerImages";
+import { NO_SPONSORSHIP, type SponsoredAvailability } from "@/lib/sponsorship/types";
 
 /** Faint rather than gone: the lifted floor still reads as a floor. */
 const PEEK_OPACITY = 0.2;
@@ -56,9 +57,13 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
   const retryArrival = useCallback(() => { setLoadError(null); setLoadAttempt((n) => n + 1); }, []);
   const [floors, setFloors] = useState<Floor[]>([]);
   const [serverKeys, setServerKeys] = useState(false);
+  const [sponsored, setSponsored] = useState<SponsoredAvailability>(NO_SPONSORSHIP);
+  const refreshSponsorship = useCallback(() => {
+    fetch("/api/sponsorship").then((response) => { if (!response.ok) throw new Error(); return response.json(); })
+      .then(setSponsored).catch(() => setSponsored({ ...NO_SPONSORSHIP, reason: "unavailable" }));
+  }, []);
+  const submission = useRef<{ theme: string; effort: Effort; own: boolean; id: string } | null>(null);
   const [local, setLocal] = useState(false);
-  /** ?keys forces the panel open even when the host supplies them. */
-  const [forceKeys, setForceKeys] = useState(false);
   const [busy, setBusy] = useState(false);
   const pendingCount = floors.filter((floor) => floor.status === "pending").length;
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +104,8 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
   );
   const frame = useMemo(() => frameOf(visible), [visible]);
   const placed = useMemo(() => placeFloors(visible, frame), [visible, frame]);
-  const ready = serverKeys || Boolean(keys.anthropic && keys.fal);
+  const hasAnyKey = Boolean(keys.anthropic.trim() || keys.fal.trim());
+  const ready = hasAnyKey ? Boolean(keys.anthropic.trim() && keys.fal.trim()) : sponsored.available;
 
   /** How much each tile rides up over the one below it. */
   const overlap = frame.height - frame.pitch;
@@ -107,10 +113,6 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
   const images = useTowerImages(placed, frame.pitch, camera.scale, camera.y, positioned);
   const revealed = peeked ? placed[placed.findIndex((item) => item.floor.id === peeked) + 1]?.floor : null;
   const arrivalOrdinals = useMemo(() => visible.filter((floor) => floor.kind === "floor").map((floor) => floor.ordinal).sort((a, b) => a - b), [visible]);
-
-  useEffect(() => {
-    setForceKeys(new URLSearchParams(window.location.search).has("keys"));
-  }, []);
 
   useEffect(() => {
     cameraRef.current = camera;
@@ -188,6 +190,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
         if (!Array.isArray(data.floors)) throw new Error();
         setFloors(data.floors);
         setServerKeys(data.serverKeys);
+        setSponsored(data.sponsored ?? NO_SPONSORSHIP);
         setLocal(Boolean(data.local));
         setMetadataLoaded(true);
       })
@@ -216,26 +219,38 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
       setBusy(true);
       setError(null);
       try {
+        if (!submission.current) {
+          try { submission.current = JSON.parse(sessionStorage.getItem("nextfloor.submission") ?? "null"); } catch { /* Optional recovery. */ }
+        }
+        if (!submission.current || submission.current.theme !== theme || submission.current.effort !== effort || submission.current.own !== hasAnyKey) {
+          submission.current = { theme, effort, own: hasAnyKey, id: crypto.randomUUID() };
+        }
+        try { sessionStorage.setItem("nextfloor.submission", JSON.stringify(submission.current)); } catch { /* In-memory idempotency still works. */ }
         const response = await fetch("/api/floors", {
           method: "POST",
           headers: headers(),
-          body: JSON.stringify({ theme, effort }),
+          body: JSON.stringify({ theme, effort, requestId: submission.current.id }),
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error ?? "Could not start that floor.");
         const floor = data.floor as Floor;
         mine.current.add(floor.id);
-        setFloors((current) => [...current, floor]);
+        setFloors((current) => current.some((item) => item.id === floor.id) ? current : [...current, floor]);
         setNewest(floor.id);
+        submission.current = null;
+        try { sessionStorage.removeItem("nextfloor.submission"); } catch { /* Non-fatal. */ }
         return true;
       } catch (thrown) {
         setError(thrown instanceof Error ? thrown.message : "Could not start that floor.");
         return false;
       } finally {
         setBusy(false);
+        fetch("/api/floors").then((r) => r.ok ? r.json() : null).then((data) => {
+          if (data?.sponsored) setSponsored(data.sponsored);
+        }).catch(() => {});
       }
     },
-    [headers],
+    [headers, hasAnyKey],
   );
 
   /** Plain wheel zooms the desktop stage around the pointer. Controls retain
@@ -378,7 +393,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
     const timer = setInterval(() => {
       fetch("/api/floors")
         .then((response) => response.json())
-        .then((data) => setFloors(data.floors))
+        .then((data) => { if (Array.isArray(data.floors)) setFloors(data.floors); if (data.sponsored) setSponsored(data.sponsored); })
         .catch(() => {});
     }, 8000);
     return () => clearInterval(timer);
@@ -674,7 +689,9 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
           keys={keys}
           onKeysChange={setKeys}
           serverKeys={serverKeys}
-          showKeys={!serverKeys || forceKeys}
+          sponsored={sponsored}
+          onOpen={refreshSponsorship}
+          showKeys={true}
           local={local}
           reopen={reopen}
         />
