@@ -489,6 +489,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
    */
   const peek = useCallback(
     (index: number) => {
+      cancelAnimationFrame(travel.current);
       const over = placed[index - 1]?.floor;
       if (!over) return;
       setPeeked((current) => (current === over.id ? null : over.id));
