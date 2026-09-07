@@ -63,4 +63,10 @@ Highly detailed isometric pixel art, 16/32-bit game aesthetic. Crisp deliberate
 pixel edges, consistent pixel density and object scale, rich interior lighting,
 tiny expressive characters. Dense but readable.
 
+OUTLINE:
+Draw a solid black outline, 2 to 3 pixels thick, around the whole outer
+silhouette of the floor where it meets the transparent surround. Hard and
+unbroken, no glow, no feathering, no gap. It is what makes a floor read as a
+solid object rather than a cutout pasted onto the page.
+
 {{content}}
