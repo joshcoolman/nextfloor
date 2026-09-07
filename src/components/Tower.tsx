@@ -106,6 +106,16 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
   const contentHeight = towerHeight(placed.length, frame);
   const images = useTowerImages(placed, frame.pitch, camera.scale, camera.y, positioned);
   const closePrompt = useCallback(() => setPeeked(null), []);
+  useEffect(() => {
+    if (!peeked) return;
+    // Mobile scrolls the document vertically; scrolling the prompt itself
+    // must remain available for reading long descriptions.
+    const dismissOnScroll = (event: Event) => {
+      if (event.target === document || event.target === window) closePrompt();
+    };
+    window.addEventListener("scroll", dismissOnScroll);
+    return () => window.removeEventListener("scroll", dismissOnScroll);
+  }, [peeked, closePrompt]);
   const revealed = peeked ? placed[placed.findIndex((item) => item.floor.id === peeked) + 1]?.floor : null;
   const arrivalOrdinals = useMemo(() => visible.filter((floor) => floor.kind === "floor").map((floor) => floor.ordinal).sort((a, b) => a - b), [visible]);
 
