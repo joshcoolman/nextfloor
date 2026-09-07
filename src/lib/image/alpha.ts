@@ -10,10 +10,30 @@ import sharp from "sharp";
  * matching colours inside the artwork are never touched.
  */
 
-/** How far a pixel may differ from a background colour and still be background. */
-const TOLERANCE = 14;
-/** Max channel spread for a pixel to count as neutral grey. */
-const NEUTRAL = 10;
+/**
+ * How far a pixel may differ from a sampled background colour, per channel.
+ *
+ * The background is asked to be flat black and the outline #222222, which are 34
+ * levels apart, so anything under about 25 stops at the outline rather than
+ * eating through it. 20 leaves margin for encoder noise on both sides.
+ *
+ * Tolerance is not free: what survives the fill is the blend between background
+ * and outline, and every extra level consumes another band of it and exposes
+ * something lighter behind. That matters most on the roughly two thirds of the
+ * silhouette where the model draws no outline at all and the fill runs into
+ * artwork.
+ *
+ * 40 is the fallback for a background that is not flat -- a checkerboard or a
+ * gradient -- where a tight tolerance stops the fill almost immediately.
+ */
+const TOLERANCES = [20, 40];
+
+/**
+ * A tile whose background has been keyed lands somewhere around a third
+ * transparent. Far below that means the fill stopped early and the tolerance
+ * was too tight for this background.
+ */
+const PLAUSIBLE = 0.15;
 /** Below this, the tile already has usable transparency and is left alone. */
 const ALREADY_TRANSPARENT = 0.05;
 
@@ -32,56 +52,103 @@ export async function restoreAlpha(input: Buffer): Promise<Buffer> {
   }
   if (transparent / (width * height) > ALREADY_TRANSPARENT) return input;
 
-  const corner = [raw[0], raw[1], raw[2]];
-  let other: number[] | null = null;
-  for (let x = 1; x < Math.min(width, 200) && !other; x += 1) {
-    const i = x * 4;
-    if (Math.abs(raw[i] - corner[0]) > TOLERANCE) other = [raw[i], raw[i + 1], raw[i + 2]];
-  }
-  const second = other ?? corner;
+  /**
+   * Sample the background rather than assume it.
+   *
+   * This is the magic wand: click outside the subject, small tolerance,
+   * contiguous. The colour is whatever is actually there.
+   *
+   * The previous version required the background to be neutral grey, which is
+   * true of a transparency checkerboard and of nothing else. A green background
+   * (11,32,26) and a sky-blue one (163,220,252) both came back from the model
+   * and both defeated it outright -- the fill never started and the tile would
+   * have shipped as an opaque rectangle.
+   *
+   * Four samples, one per corner, because a transparency checkerboard has two
+   * colours and only some corners see each.
+   */
+  const samples: Array<[number, number, number]> = [];
+  const addSample = (x: number, y: number) => {
+    const i = (y * width + x) * 4;
+    const next: [number, number, number] = [raw[i], raw[i + 1], raw[i + 2]];
+    // Two corners of a checkerboard differ; four corners of flat black do not.
+    const known = samples.some(
+      (s) =>
+        Math.abs(s[0] - next[0]) <= 2 &&
+        Math.abs(s[1] - next[1]) <= 2 &&
+        Math.abs(s[2] - next[2]) <= 2,
+    );
+    if (!known) samples.push(next);
+  };
+  // Corners only, inset by a pixel.
+  //
+  // Sampling all round the border looks more thorough and is worse: the building
+  // reaches the image edge on plenty of tiles -- 142 border pixels of artwork on
+  // one, 86 on another -- so an edge sample lands on the floor itself and admits
+  // a building colour as background, which the fill then eats wherever it can
+  // reach. The corners are the one place the artwork never is: measured across
+  // all eighteen tiles in the building, zero have artwork in a corner.
+  //
+  // The inset is for encoders and resamplers, which occasionally leave the
+  // outermost row slightly off -- a sample there describes an artifact.
+  const inset = 1;
+  addSample(inset, inset);
+  addSample(width - 1 - inset, inset);
+  addSample(inset, height - 1 - inset);
+  addSample(width - 1 - inset, height - 1 - inset);
 
-  // Resampling leaves blended pixels along every checker boundary. Matching only
-  // the two exact colours leaves those in place and they dam the flood fill, so
-  // anything neutral within the background's brightness range counts too.
-  const lo = Math.min(corner[0], second[0]) - TOLERANCE;
-  const hi = Math.max(corner[0], second[0]) + TOLERANCE;
-
-  const isBackground = (i: number) => {
-    const r = raw[i];
-    const g = raw[i + 1];
-    const b = raw[i + 2];
-    if (Math.max(r, g, b) - Math.min(r, g, b) > NEUTRAL) return false;
-    const luma = (r + g + b) / 3;
-    return luma >= lo && luma <= hi;
+  /**
+   * Colour decides what background looks like; connectivity decides what is
+   * background. The fill only ever reaches pixels joined to the border, so a
+   * neon sign inside the floor that happens to match is never touched -- which
+   * is what makes keying on a saturated colour safe at all.
+   */
+  const flood = (tolerance: number) => {
+    const alpha = new Uint8Array(width * height);
+    const isBackground = (i: number) =>
+      samples.some(
+        (s) =>
+          Math.abs(raw[i] - s[0]) <= tolerance &&
+          Math.abs(raw[i + 1] - s[1]) <= tolerance &&
+          Math.abs(raw[i + 2] - s[2]) <= tolerance,
+      );
+    const stack: Array<[number, number]> = [];
+    for (let x = 0; x < width; x += 1) stack.push([x, 0], [x, height - 1]);
+    for (let y = 0; y < height; y += 1) stack.push([0, y], [width - 1, y]);
+    let cleared = 0;
+    while (stack.length) {
+      const [x, y] = stack.pop()!;
+      if (x < 0 || y < 0 || x >= width || y >= height) continue;
+      const p = y * width + x;
+      if (alpha[p]) continue;
+      if (!isBackground(p * 4)) continue;
+      alpha[p] = 1;
+      cleared += 1;
+      stack.push(
+        [x + 1, y],
+        [x - 1, y],
+        [x, y + 1],
+        [x, y - 1],
+        [x + 1, y + 1],
+        [x - 1, y - 1],
+        [x + 1, y - 1],
+        [x - 1, y + 1],
+      );
+    }
+    return { alpha, cleared };
   };
 
-  const seen = new Uint8Array(width * height);
-  const stack: Array<[number, number]> = [];
-  for (let x = 0; x < width; x += 1) stack.push([x, 0], [x, height - 1]);
-  for (let y = 0; y < height; y += 1) stack.push([0, y], [width - 1, y]);
-
-  while (stack.length) {
-    const [x, y] = stack.pop()!;
-    if (x < 0 || y < 0 || x >= width || y >= height) continue;
-    const p = y * width + x;
-    if (seen[p]) continue;
-    const i = p * 4;
-    if (!isBackground(i)) continue;
-    seen[p] = 1;
-    raw[i + 3] = 0;
-    stack.push(
-      [x + 1, y],
-      [x - 1, y],
-      [x, y + 1],
-      [x, y - 1],
-      [x + 1, y + 1],
-      [x - 1, y - 1],
-      [x + 1, y - 1],
-      [x - 1, y + 1],
-    );
+  // Tightest tolerance that actually clears the background. Widening is a
+  // fallback for a background that is not flat, not a default.
+  let keyed = flood(TOLERANCES[0]);
+  for (let i = 1; i < TOLERANCES.length; i += 1) {
+    if (keyed.cleared / (width * height) >= PLAUSIBLE) break;
+    keyed = flood(TOLERANCES[i]);
   }
 
-  defringe(raw, width, height);
+  for (let p = 0; p < width * height; p += 1) {
+    if (keyed.alpha[p]) raw[p * 4 + 3] = 0;
+  }
 
   return sharp(raw, { raw: { width, height, channels: 4 } })
     .png()
