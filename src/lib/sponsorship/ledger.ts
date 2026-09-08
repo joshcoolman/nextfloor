@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 import { ensureSchema, pool } from "@/lib/db/client";
 import { listFloors, reserveFloor } from "@/lib/db/floors";
-import { POLICY, SponsorshipError, type Funding } from "./policy";
+import { POLICY, publicBudget, SponsorshipError, type Funding } from "./policy";
 import type { SponsoredAvailability } from "./types";
 
 export async function locked<T>(run: (client: PoolClient) => Promise<T>): Promise<T> {
@@ -56,9 +56,13 @@ export async function reserveBudget(client: PoolClient, kind: "floor" | "suggest
     throw new SponsorshipError("daily_limit", "Today's free floors have been claimed. Bring your own keys or come back tomorrow.", budget.dayEnd.toISOString());
   }
   const reserved = kind === "floor" ? POLICY.floorReservation : POLICY.suggestionReservation;
-  if (budget.floors + budget.suggestions + reserved > POLICY.monthly ||
-      (kind === "floor" ? budget.floors + reserved > POLICY.floorsMonthly : budget.suggestions + reserved > POLICY.suggestionsMonthly)) {
+  const limit = publicBudget(now);
+  if (budget.floors + budget.suggestions + reserved > limit.monthly ||
+      (kind === "floor" ? budget.floors + reserved > limit.floors : budget.suggestions + reserved > limit.suggestions)) {
     throw new SponsorshipError("monthly_limit", "This month's free allowance has been used. You can still bring your own keys.", budget.monthEnd.toISOString());
+  }
+  if (budget.floors + budget.suggestions + reserved > limit.accrued) {
+    throw new SponsorshipError("daily_limit", "The public budget is replenishing daily. Bring your own keys or check back later.", budget.dayEnd.toISOString());
   }
   const id = randomUUID();
   await client.query("insert into sponsored_reservations(id, kind, reserved, created_at) values ($1,$2,$3,$4)", [id, kind, reserved, now]);
@@ -74,11 +78,14 @@ export async function settleBudget(funding: Funding) {
 export async function availability(): Promise<SponsoredAvailability> {
   return locked(async (client) => {
     const budget = await allowance(client);
-    const monthly = budget.floors + POLICY.floorReservation > POLICY.floorsMonthly;
+    const limit = publicBudget();
+    const total = budget.floors + budget.suggestions;
+    const monthly = budget.floors + POLICY.floorReservation > limit.floors || total + POLICY.floorReservation > limit.monthly;
+    const daily = total + POLICY.floorReservation > limit.accrued;
     const resetting = budget.dayEnd.getTime() - Date.now() < 10 * 60_000;
-    const reason = monthly ? "monthly_limit" : budget.attempts >= POLICY.dailyAttempts ? "daily_limit" : resetting ? "resetting" : null;
+    const reason = monthly ? "monthly_limit" : daily || budget.attempts >= POLICY.dailyAttempts ? "daily_limit" : resetting ? "resetting" : null;
     return { enabled: true, available: !reason, remainingToday: Math.max(0, Math.min(POLICY.dailyAttempts - budget.attempts,
-      Math.floor((POLICY.floorsMonthly - budget.floors) / POLICY.floorReservation))),
+      Math.floor(Math.min(limit.floors - budget.floors, limit.accrued - total) / POLICY.floorReservation))),
       resetAt: (monthly ? budget.monthEnd : budget.dayEnd).toISOString(), reason };
   });
 }

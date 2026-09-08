@@ -9,10 +9,12 @@ import KeyPanel from "./KeyPanel";
 import type { KeyPair } from "@/hooks/useKeys";
 import type { Effort, Floor } from "@/lib/ai/types";
 import type { SponsoredAvailability } from "@/lib/sponsorship/types";
+import type { RoomIdeas } from "@/hooks/useRoomIdeas";
 
 type Pane = "add" | "floors" | "keys";
 
 interface Props {
+  roomIdeas: RoomIdeas;
   floors: Floor[];
   busy: boolean;
   pending: number;
@@ -40,6 +42,7 @@ interface Props {
  * one dialog rather than stacking dialogs on top of each other.
  */
 export default function ControlPanel({
+  roomIdeas,
   floors,
   busy,
   pending,
@@ -107,7 +110,7 @@ export default function ControlPanel({
         if (event.target === event.currentTarget) setOpen(false);
       }}
     >
-      <div className={styles.modal}>
+      <div className={styles.modal} role="dialog" aria-modal="true" aria-label="Building controls">
         {tabs.length > 1 && (
           <div className={styles.tabs}>
             {tabs.map(([id, label]) => (
@@ -131,7 +134,8 @@ export default function ControlPanel({
               disabled={!ready}
               error={error}
               sponsored={sponsored}
-              usingOwnKeys={Boolean(keys.anthropic || keys.fal)}
+              usingOwnKeys={Boolean(keys.anthropic || keys.fal || serverKeys)}
+              roomIdeas={roomIdeas}
               onSubmit={onSubmit}
               onDone={() => setOpen(false)}
             />

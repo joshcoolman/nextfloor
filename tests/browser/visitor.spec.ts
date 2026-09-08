@@ -194,10 +194,14 @@ test("reveal stays open and its card leaves the viewport with the floor", async 
 
 test("suggestions rotate, fill drafts, hide while editing, and never submit", async ({ page, isMobile }) => {
   let creates = 0;
+  let ideaRequests = 0;
+  page.on("request", (r) => { if (r.url().endsWith("/api/suggestions")) ideaRequests++; });
   page.on("request", (r) => { if (r.url().endsWith("/api/floors") && r.method() === "POST") creates++; });
   await mockBuilding(page);
   await page.goto("/");
   await expect(page.locator('[aria-busy="false"]')).toBeVisible();
+  await expect.poll(() => ideaRequests).toBe(1);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: "Add a floor", exact: true }).click();
   await page.getByRole("button", { name: "Idea 1", exact: true }).click();
   await expect(page.getByLabel("DESCRIBE ROOM")).toHaveValue(suggestions[0].prompt);
@@ -208,6 +212,64 @@ test("suggestions rotate, fill drafts, hide while editing, and never submit", as
   await page.getByRole("button", { name: "CLEAR", exact: true }).click();
   await expect(page.getByRole("button", { name: "Idea 4", exact: true })).toBeVisible();
   expect(creates).toBe(0);
+  expect(ideaRequests).toBe(1);
+});
+
+test("background ideas never delay arrival or restart when the dialog reopens", async ({ page }) => {
+  await mockBuilding(page);
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  let calls = 0;
+  await page.route("**/api/suggestions", async (route) => {
+    calls++;
+    await gate;
+    await route.fulfill({ json: { batchId: "warm-pool", suggestions } });
+  });
+  await page.goto("/");
+  await expect(page.locator('[aria-busy="false"]')).toBeVisible();
+  await expect.poll(() => calls).toBe(1);
+  await page.getByRole("button", { name: "Add a floor", exact: true }).click();
+  await expect(page.getByText("Dreaming up room ideas…")).toBeVisible();
+  await page.getByRole("button", { name: "CLOSE", exact: true }).click();
+  release();
+  await page.getByRole("button", { name: "Add a floor", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Idea 1", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "CLOSE", exact: true }).click();
+  await page.getByRole("button", { name: "Add a floor", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Idea 4", exact: true })).toBeVisible();
+  expect(calls).toBe(1);
+});
+
+test("BYOK enables colorful hint badges without public funding", async ({ page }, testInfo) => {
+  await page.addInitScript(() => localStorage.setItem("nextfloor.keys", JSON.stringify({ anthropic: "browser-hints-key", fal: "browser-floor-key" })));
+  await mockBuilding(page);
+  await page.route("**/api/floors", (route) => route.fulfill({ json: { floors, sponsored: { ...sponsored, enabled: false, available: false }, serverKeys: false, local: false } }));
+  let usedKey = "";
+  await page.route("**/api/suggestions", (route) => {
+    usedKey = route.request().headers()["x-anthropic-key"];
+    return route.fulfill({ json: { batchId: "byok-batch", suggestions: suggestions.map((idea, n) => ({ ...idea, label: ["Alien Café", "Zombie Dance Class", "Conspiracy Lab"][n % 3] + (n > 2 ? ` ${n}` : "") })) } });
+  });
+  await page.goto("/");
+  await expect(page.locator('[aria-busy="false"]')).toBeVisible();
+  await page.getByRole("button", { name: "Add a floor", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Alien Café", exact: true })).toBeVisible();
+  expect(usedKey).toBe("browser-hints-key");
+  await expect(page.getByRole("dialog")).toHaveCSS("background-color", "rgb(25, 42, 64)");
+  await page.screenshot({ path: testInfo.outputPath("bright-add-floor-hints.png") });
+  await page.getByRole("button", { name: "Alien Café", exact: true }).click();
+  await expect(page.getByLabel("DESCRIBE ROOM")).toHaveValue(suggestions[0].prompt);
+  await expect(page.getByRole("button", { name: "CREATE FLOOR", exact: true })).toBeEnabled();
+});
+
+test("development environment key availability enables creation without browser keys", async ({ page }) => {
+  await mockBuilding(page);
+  await page.route("**/api/floors", (route) => route.fulfill({ json: { floors, sponsored: { ...sponsored, enabled: false, available: false }, serverKeys: true, keyAvailability: { anthropic: true, fal: true }, local: true } }));
+  await page.goto("/");
+  await expect(page.locator('[aria-busy="false"]')).toBeVisible();
+  await page.getByRole("button", { name: "Add a floor", exact: true }).click();
+  await page.getByLabel("DESCRIBE ROOM").fill("A room full of friendly aliens.");
+  await expect(page.getByRole("button", { name: "CREATE FLOOR", exact: true })).toBeEnabled();
+  await expect(page.getByText("Using configured API keys. No shared allowance applies.")).toBeVisible();
 });
 
 test("metadata failure retries and reduced-motion empty arrival completes", async ({ page }) => {

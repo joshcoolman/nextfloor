@@ -1,5 +1,5 @@
 import { after, NextResponse } from "next/server";
-import { MissingKeyError, visitorKeys, sponsoredKeys } from "@/lib/ai/keys";
+import { MissingKeyError, visitorKeys, sponsoredKeys, environmentKeys } from "@/lib/ai/keys";
 import { listFloors, parkReferenceTile, sweepStalePending, completeFloor } from "@/lib/db/floors";
 import { availability, reserveGeneration, settleBudget } from "@/lib/sponsorship/ledger";
 import { pricesSafe } from "@/lib/sponsorship/pricing";
@@ -23,12 +23,14 @@ export async function GET(request: Request) {
     console.error("[nextfloor] could not raise the static building", error);
   }
   const host = sponsoredKeys();
+  const environment = environmentKeys();
   const sponsored = host ? await availability().catch(() => ({ ...NO_SPONSORSHIP, enabled: true, reason: "unavailable" as const })) : NO_SPONSORSHIP;
   return NextResponse.json({
     // The reference tile is the model's example, not a storey. Serving it would
     // put an unnumbered arcade in the tower and hold floor 1 against being built.
     floors: (await listFloors()).filter((floor) => !floor.isReference),
-    serverKeys: sponsored.available,
+    serverKeys: Boolean(environment.anthropic && environment.fal),
+    keyAvailability: { anthropic: Boolean(environment.anthropic), fal: Boolean(environment.fal) },
     sponsored,
     local: isLocalRequest(request),
   });

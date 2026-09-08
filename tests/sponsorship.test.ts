@@ -5,8 +5,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { pool, ensureSchema } from "../src/lib/db/client";
 import { allowance, locked, reserveBudget, reserveGeneration, settleBudget } from "../src/lib/sponsorship/ledger";
-import { POLICY } from "../src/lib/sponsorship/policy";
-import { visitorKeys, sponsoredKeys } from "../src/lib/ai/keys";
+import { POLICY, publicBudget } from "../src/lib/sponsorship/policy";
+import { visitorKeys, sponsoredKeys, suggestionKey } from "../src/lib/ai/keys";
 import { anthropicPricesSafe, falPriceSafe } from "../src/lib/sponsorship/pricing";
 import { relevantSuggestions, getSuggestions } from "../src/lib/sponsorship/suggestions";
 import { generateFloorSpec } from "../src/lib/ai/spec";
@@ -94,7 +94,14 @@ test("floor deletion and stale cleanup never refund sponsor reservations", async
   assert.equal((await pool().query("select reserved from sponsored_reservations where id=$1", [reservation.id])).rows[0].reserved, POLICY.floorReservation);
 });
 
-test("BYOK requires both keys and legacy host fallback is disabled", () => {
+test("production requires public opt-in; BYOK and development keys work independently", (t) => {
+  const saved = { ...process.env };
+  t.after(() => {
+    for (const key of ["NODE_ENV", "ALLOW_SERVER_KEYS", "PUBLIC_GENERATION", "ANTHROPIC_API_KEY", "FAL_KEY"]) {
+      if (saved[key] === undefined) delete process.env[key]; else process.env[key] = saved[key];
+    }
+  });
+  Object.assign(process.env, { NODE_ENV: "production", PUBLIC_GENERATION: "false" });
   process.env.ALLOW_SERVER_KEYS = "true";
   process.env.ANTHROPIC_API_KEY = "unused-host";
   process.env.FAL_KEY = "unused-host";
@@ -102,6 +109,55 @@ test("BYOK requires both keys and legacy host fallback is disabled", () => {
   assert.throws(() => visitorKeys(new Request("http://localhost", { headers: { "x-fal-key": "visitor" } })), /Missing/);
   assert.deepEqual(visitorKeys(new Request("http://localhost", { headers: { "x-fal-key": "visitor-fal", "x-anthropic-key": "visitor-anthropic" } })), { fal: "visitor-fal", anthropic: "visitor-anthropic" });
   assert.equal(sponsoredKeys(), null);
+  assert.equal(suggestionKey(new Request("http://localhost")), "");
+  process.env.PUBLIC_GENERATION = "true";
+  assert.deepEqual(sponsoredKeys(), { anthropic: "unused-host", fal: "unused-host" });
+  assert.equal(visitorKeys(new Request("http://localhost")), null);
+  Object.assign(process.env, { NODE_ENV: "development", PUBLIC_GENERATION: "false" });
+  assert.deepEqual(visitorKeys(new Request("http://localhost")), { anthropic: "unused-host", fal: "unused-host" });
+  assert.deepEqual(visitorKeys(new Request("http://localhost", { headers: { "x-anthropic-key": "visitor" } })), { anthropic: "visitor", fal: "unused-host" });
+  assert.equal(suggestionKey(new Request("http://localhost", { headers: { "x-anthropic-key": "visitor" } })), "visitor");
+});
+
+test("public monthly budget trickles daily, carries unused credit, and validates configuration", async (t) => {
+  process.env.PUBLIC_GENERATION = "true";
+  process.env.PUBLIC_MONTHLY_BUDGET_USD = "30";
+  t.after(() => { delete process.env.PUBLIC_GENERATION; delete process.env.PUBLIC_MONTHLY_BUDGET_USD; });
+  const day1 = new Date("2026-09-01T19:00:00Z");
+  const day2 = new Date("2026-09-02T19:00:00Z");
+  assert.equal(publicBudget(day1).accrued, 1_000_000);
+  assert.equal(publicBudget(day2).accrued, 2_000_000);
+  await locked((c) => reserveBudget(c, "floor", day1));
+  await assert.rejects(locked((c) => reserveBudget(c, "floor", day1)), { code: "daily_limit" });
+  await locked((c) => reserveBudget(c, "floor", day2));
+  await locked((c) => reserveBudget(c, "floor", day2));
+  await assert.rejects(locked((c) => reserveBudget(c, "floor", day2)), { code: "daily_limit" });
+  process.env.PUBLIC_MONTHLY_BUDGET_USD = "10";
+  assert.equal(publicBudget(day1).suggestions, 500_000);
+  assert.equal(publicBudget(new Date("2026-02-28T19:00:00Z")).accrued, 10_000_000);
+  assert.equal(publicBudget(new Date("2026-03-01T19:00:00Z")).accrued, Math.floor(10_000_000 / 31));
+  process.env.PUBLIC_MONTHLY_BUDGET_USD = "invalid";
+  assert.throws(() => publicBudget(day1), { code: "unavailable" });
+});
+
+test("Anthropic-only hints bypass sponsorship and refresh on context changes without cooldown", async (t) => {
+  let calls = 0;
+  const suggestions = Array.from({ length: 18 }, (_, n) => ({ label: `Idea ${n}`, prompt: `A secret laboratory number ${n} where suspicious librarians catalog impossible machines while three visitors argue about who moved the moon. Dusty books crowd every desk and nobody trusts the cat.` }));
+  t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
+    assert.ok(String(input).includes("api.anthropic.com/v1/messages"));
+    assert.equal(new Headers(init?.headers).get("x-api-key"), "visitor-hints-key");
+    calls++;
+    return Response.json({ id: "msg-test", type: "message", role: "assistant", model: POLICY.suggestionModel,
+      stop_reason: "end_turn", stop_sequence: null, usage: { input_tokens: 1000, output_tokens: 1000 },
+      content: [{ type: "text", text: JSON.stringify({ suggestions }) }] });
+  });
+  await Promise.all(Array.from({ length: 8 }, () => getSuggestions("visitor-hints-key")));
+  assert.equal(calls, 1);
+  assert.equal((await getSuggestions("visitor-hints-key")).suggestions.length, 18);
+  assert.equal((await pool().query("select * from sponsored_reservations")).rowCount, 0);
+  await reserveGeneration("A new room", "medium", randomUUID(), false);
+  assert.equal((await getSuggestions("visitor-hints-key")).suggestions.length, 18);
+  assert.equal(calls, 2);
 });
 
 test("pricing rejects missing, malformed, increased and differently metered prices", () => {
@@ -165,7 +221,7 @@ test("concurrent suggestion refreshes pay once and persist a rotating batch", as
     delete process.env.SPONSORED_FAL_KEY;
   });
   let paidCalls = 0;
-  const suggestions = Array.from({ length: 12 }, (_, n) => ({ label: `Room ${n}`, prompt: `A secret laboratory number ${n} where suspicious librarians catalog impossible machines while three visitors argue about who moved the moon. Dusty books crowd every desk and nobody trusts the cat.` }));
+  const suggestions = Array.from({ length: 18 }, (_, n) => ({ label: `Room ${n}`, prompt: `A secret laboratory number ${n} where suspicious librarians catalog impossible machines while three visitors argue about who moved the moon. Dusty books crowd every desk and nobody trusts the cat.` }));
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
     const url = String(input);
     if (url.endsWith("pricing.md")) return new Response("| Claude Sonnet 5 | $2 / MTok | $2.5 / MTok | $4 / MTok | $0.2 / MTok | $10 / MTok |\n| Claude Haiku 4.5 | $1 / MTok | $1.25 / MTok | $2 / MTok | $0.1 / MTok | $5 / MTok |");
@@ -179,7 +235,7 @@ test("concurrent suggestion refreshes pay once and persist a rotating batch", as
   });
   await Promise.all(Array.from({ length: 8 }, () => getSuggestions()));
   assert.equal(paidCalls, 1);
-  assert.equal((await getSuggestions()).suggestions.length, 12);
+  assert.equal((await getSuggestions()).suggestions.length, 18);
   const { rows: [row] } = await pool().query("select cost from sponsored_reservations where kind='suggestion'");
   assert.equal(row.cost, 6000);
 });
