@@ -12,7 +12,10 @@ BYOK does not silently consume public credit to supply the missing provider.
 
 Room hints need only Anthropic, not fal. Hints use the visitor's Anthropic key
 or the local development environment key before considering public funding. Shared
-batches are cached for 24 hours and refreshed when the building changes; direct
+batches contain 18 ideas, warmed in the background once startup metadata and
+browser keys are ready. Opening the dialog draws the next three from the page's
+pool without a network request; loading never waits for hints. Batches are
+cached for 24 hours and refreshed when the building changes; direct
 keys have no six-hour sponsored cooldown. A short in-flight claim deduplicates
 concurrent refreshes. Neither browser keys nor their values enter the cache.
 
@@ -74,7 +77,7 @@ disabled; image validation may retry once. Known interpreter usage releases
 unused token allowance. An image attempt retains its $0.20 ceiling even if its
 response is lost. A crash or unknown interpreter usage keeps the full reservation.
 
-Suggestion batches reserve $0.02: at most 8,000 Haiku input and 2,000 output
+Suggestion batches reserve $0.02: at most 8,000 Haiku input and 2,400 output
 tokens. Successful calls settle to reported usage. Refresh attempts are globally
 limited to one per six hours, with a 24-hour freshness window; no timer generates
 suggestions when nobody visits. Empty or invalid suggestions never block typing.

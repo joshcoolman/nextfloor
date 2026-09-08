@@ -142,7 +142,7 @@ test("public monthly budget trickles daily, carries unused credit, and validates
 
 test("Anthropic-only hints bypass sponsorship and refresh on context changes without cooldown", async (t) => {
   let calls = 0;
-  const suggestions = Array.from({ length: 12 }, (_, n) => ({ label: `Idea ${n}`, prompt: `A secret laboratory number ${n} where suspicious librarians catalog impossible machines while three visitors argue about who moved the moon. Dusty books crowd every desk and nobody trusts the cat.` }));
+  const suggestions = Array.from({ length: 18 }, (_, n) => ({ label: `Idea ${n}`, prompt: `A secret laboratory number ${n} where suspicious librarians catalog impossible machines while three visitors argue about who moved the moon. Dusty books crowd every desk and nobody trusts the cat.` }));
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request, init?: RequestInit) => {
     assert.ok(String(input).includes("api.anthropic.com/v1/messages"));
     assert.equal(new Headers(init?.headers).get("x-api-key"), "visitor-hints-key");
@@ -153,10 +153,10 @@ test("Anthropic-only hints bypass sponsorship and refresh on context changes wit
   });
   await Promise.all(Array.from({ length: 8 }, () => getSuggestions("visitor-hints-key")));
   assert.equal(calls, 1);
-  assert.equal((await getSuggestions("visitor-hints-key")).suggestions.length, 12);
+  assert.equal((await getSuggestions("visitor-hints-key")).suggestions.length, 18);
   assert.equal((await pool().query("select * from sponsored_reservations")).rowCount, 0);
   await reserveGeneration("A new room", "medium", randomUUID(), false);
-  assert.equal((await getSuggestions("visitor-hints-key")).suggestions.length, 12);
+  assert.equal((await getSuggestions("visitor-hints-key")).suggestions.length, 18);
   assert.equal(calls, 2);
 });
 
@@ -221,7 +221,7 @@ test("concurrent suggestion refreshes pay once and persist a rotating batch", as
     delete process.env.SPONSORED_FAL_KEY;
   });
   let paidCalls = 0;
-  const suggestions = Array.from({ length: 12 }, (_, n) => ({ label: `Room ${n}`, prompt: `A secret laboratory number ${n} where suspicious librarians catalog impossible machines while three visitors argue about who moved the moon. Dusty books crowd every desk and nobody trusts the cat.` }));
+  const suggestions = Array.from({ length: 18 }, (_, n) => ({ label: `Room ${n}`, prompt: `A secret laboratory number ${n} where suspicious librarians catalog impossible machines while three visitors argue about who moved the moon. Dusty books crowd every desk and nobody trusts the cat.` }));
   t.mock.method(globalThis, "fetch", async (input: string | URL | Request) => {
     const url = String(input);
     if (url.endsWith("pricing.md")) return new Response("| Claude Sonnet 5 | $2 / MTok | $2.5 / MTok | $4 / MTok | $0.2 / MTok | $10 / MTok |\n| Claude Haiku 4.5 | $1 / MTok | $1.25 / MTok | $2 / MTok | $0.1 / MTok | $5 / MTok |");
@@ -235,7 +235,7 @@ test("concurrent suggestion refreshes pay once and persist a rotating batch", as
   });
   await Promise.all(Array.from({ length: 8 }, () => getSuggestions()));
   assert.equal(paidCalls, 1);
-  assert.equal((await getSuggestions()).suggestions.length, 12);
+  assert.equal((await getSuggestions()).suggestions.length, 18);
   const { rows: [row] } = await pool().query("select cost from sponsored_reservations where kind='suggestion'");
   assert.equal(row.cost, 6000);
 });

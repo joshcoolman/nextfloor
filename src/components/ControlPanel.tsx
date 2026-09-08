@@ -9,10 +9,12 @@ import KeyPanel from "./KeyPanel";
 import type { KeyPair } from "@/hooks/useKeys";
 import type { Effort, Floor } from "@/lib/ai/types";
 import type { SponsoredAvailability } from "@/lib/sponsorship/types";
+import type { RoomIdeas } from "@/hooks/useRoomIdeas";
 
 type Pane = "add" | "floors" | "keys";
 
 interface Props {
+  roomIdeas: RoomIdeas;
   floors: Floor[];
   busy: boolean;
   pending: number;
@@ -40,6 +42,7 @@ interface Props {
  * one dialog rather than stacking dialogs on top of each other.
  */
 export default function ControlPanel({
+  roomIdeas,
   floors,
   busy,
   pending,
@@ -132,7 +135,7 @@ export default function ControlPanel({
               error={error}
               sponsored={sponsored}
               usingOwnKeys={Boolean(keys.anthropic || keys.fal || serverKeys)}
-              anthropicKey={keys.anthropic}
+              roomIdeas={roomIdeas}
               onSubmit={onSubmit}
               onDone={() => setOpen(false)}
             />

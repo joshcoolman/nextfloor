@@ -194,10 +194,14 @@ test("reveal stays open and its card leaves the viewport with the floor", async 
 
 test("suggestions rotate, fill drafts, hide while editing, and never submit", async ({ page, isMobile }) => {
   let creates = 0;
+  let ideaRequests = 0;
+  page.on("request", (r) => { if (r.url().endsWith("/api/suggestions")) ideaRequests++; });
   page.on("request", (r) => { if (r.url().endsWith("/api/floors") && r.method() === "POST") creates++; });
   await mockBuilding(page);
   await page.goto("/");
   await expect(page.locator('[aria-busy="false"]')).toBeVisible();
+  await expect.poll(() => ideaRequests).toBe(1);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: "Add a floor", exact: true }).click();
   await page.getByRole("button", { name: "Idea 1", exact: true }).click();
   await expect(page.getByLabel("DESCRIBE ROOM")).toHaveValue(suggestions[0].prompt);
@@ -208,6 +212,32 @@ test("suggestions rotate, fill drafts, hide while editing, and never submit", as
   await page.getByRole("button", { name: "CLEAR", exact: true }).click();
   await expect(page.getByRole("button", { name: "Idea 4", exact: true })).toBeVisible();
   expect(creates).toBe(0);
+  expect(ideaRequests).toBe(1);
+});
+
+test("background ideas never delay arrival or restart when the dialog reopens", async ({ page }) => {
+  await mockBuilding(page);
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  let calls = 0;
+  await page.route("**/api/suggestions", async (route) => {
+    calls++;
+    await gate;
+    await route.fulfill({ json: { batchId: "warm-pool", suggestions } });
+  });
+  await page.goto("/");
+  await expect(page.locator('[aria-busy="false"]')).toBeVisible();
+  await expect.poll(() => calls).toBe(1);
+  await page.getByRole("button", { name: "Add a floor", exact: true }).click();
+  await expect(page.getByText("Dreaming up room ideas…")).toBeVisible();
+  await page.getByRole("button", { name: "CLOSE", exact: true }).click();
+  release();
+  await page.getByRole("button", { name: "Add a floor", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Idea 1", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "CLOSE", exact: true }).click();
+  await page.getByRole("button", { name: "Add a floor", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Idea 4", exact: true })).toBeVisible();
+  expect(calls).toBe(1);
 });
 
 test("BYOK enables colorful hint badges without public funding", async ({ page }, testInfo) => {

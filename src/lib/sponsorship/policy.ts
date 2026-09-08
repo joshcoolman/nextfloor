@@ -14,7 +14,7 @@ export const POLICY = {
   specInput: 20_000,
   specOutput: 16_000,
   suggestionInput: 8_000,
-  suggestionOutput: 2_000,
+  suggestionOutput: 2_400,
 } as const;
 
 export class SponsorshipError extends Error {

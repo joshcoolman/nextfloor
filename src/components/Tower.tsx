@@ -14,6 +14,7 @@ import { TILE } from "@/lib/building/styleGuide";
 import type { Effort, Floor } from "@/lib/ai/types";
 import ElevatorArrival from "./elevator-arrival/elevator-arrival";
 import FloorPrompt from "./floor-prompt/floor-prompt";
+import { useRoomIdeas } from "@/hooks/useRoomIdeas";
 import FloorImage from "./floor-image/floor-image";
 import { useTowerImages } from "@/hooks/useTowerImages";
 import { NO_SPONSORSHIP, type SponsoredAvailability } from "@/lib/sponsorship/types";
@@ -85,7 +86,10 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
   /** Floors this browser started, so only its own failures interrupt it. */
   const mine = useRef<Set<string>>(new Set());
 
-  const { keys, setKeys, headers } = useKeys();
+  const { keys, setKeys, headers, loaded: keysLoaded } = useKeys();
+  const ideaContext = floors.filter((floor) => floor.kind === "floor" && !floor.isReference)
+    .map((floor) => `${floor.id}:${floor.status}:${floor.displayName}`).join("|");
+  const roomIdeas = useRoomIdeas(metadataLoaded && keysLoaded, keys.anthropic, ideaContext);
 
   /**
    * A condemned floor is not in the building until someone keeps it. Until
@@ -681,6 +685,7 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
 
       <div className={styles.elevatorControls} data-controls inert={!arrived} style={{ visibility: arrived ? "visible" : "hidden" }}>
         <ControlPanel
+          roomIdeas={roomIdeas}
           floors={floors}
           busy={busy}
           pending={pendingCount}

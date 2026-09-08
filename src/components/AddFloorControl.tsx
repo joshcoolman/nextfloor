@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import styles from "./AddFloorControl.module.css";
 import { EFFORTS, type Effort } from "@/lib/ai/types";
 import type { SponsoredAvailability, Suggestion } from "@/lib/sponsorship/types";
+import type { RoomIdeas } from "@/hooks/useRoomIdeas";
 
 /** Where an unsent description is kept, so a reload does not eat it. */
 const DRAFT_KEY = "nextfloor.draft";
@@ -17,46 +18,30 @@ interface Props {
   error: string | null;
   sponsored: SponsoredAvailability;
   usingOwnKeys: boolean;
-  anthropicKey: string;
+  roomIdeas: RoomIdeas;
   /** Resolves false when the floor could not be started, so the draft is kept. */
   onSubmit: (theme: string, effort: Effort) => Promise<boolean>;
   /** Called once a floor is actually under way, to dismiss the panel. */
   onDone: () => void;
 }
 
-export default function AddFloorControl({ busy, pending, disabled, error, sponsored, usingOwnKeys, anthropicKey, onSubmit, onDone }: Props) {
+export default function AddFloorControl({ busy, pending, disabled, error, sponsored, usingOwnKeys, roomIdeas, onSubmit, onDone }: Props) {
   const [theme, setTheme] = useState("");
   const [effort, setEffort] = useState<Effort>("medium");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [draftLoaded, setDraftLoaded] = useState(false);
-  const [loadingIdeas, setLoadingIdeas] = useState(false);
-  const [ideasAttempt, setIdeasAttempt] = useState(0);
+  const { loading: loadingIdeas, suggestions: pool, batchId, retry } = roomIdeas;
   const hasDraft = Boolean(theme);
   useEffect(() => {
-    if (!draftLoaded || hasDraft) return;
-    const abort = new AbortController();
-    let retry: ReturnType<typeof setTimeout> | undefined;
-    let polls = 0;
-    setLoadingIdeas(true);
-    const load = () => fetch("/api/suggestions", { method: "POST", signal: abort.signal,
-      headers: anthropicKey.trim() ? { "x-anthropic-key": anthropicKey.trim() } : undefined })
-      .then((response) => response.json())
-      .then((data) => {
-        if (abort.signal.aborted) return;
-        if (data.pending && polls++ < 30) { retry = setTimeout(load, 2000); return; }
-        setLoadingIdeas(false);
-        if (!Array.isArray(data.suggestions) || !data.suggestions.length) return;
-        let offset = 0;
-        try {
-          const stored = JSON.parse(sessionStorage.getItem("nextfloor.suggestions") ?? "null");
-          if (stored?.batch === data.batchId) offset = Number(stored.offset) || 0;
-          sessionStorage.setItem("nextfloor.suggestions", JSON.stringify({ batch: data.batchId, offset: offset + 3 }));
-        } catch { /* Storage is optional. */ }
-        setSuggestions(Array.from({ length: Math.min(3, data.suggestions.length) }, (_, n) => data.suggestions[(offset + n) % data.suggestions.length]));
-      }).catch(() => { if (!abort.signal.aborted) setLoadingIdeas(false); });
-    void load();
-    return () => { abort.abort(); clearTimeout(retry); };
-  }, [draftLoaded, hasDraft, anthropicKey, ideasAttempt]);
+    if (!draftLoaded || hasDraft || !pool.length) return;
+    let offset = 0;
+    try {
+      const stored = JSON.parse(sessionStorage.getItem("nextfloor.suggestions") ?? "null");
+      if (stored?.batch === batchId) offset = Number(stored.offset) || 0;
+      sessionStorage.setItem("nextfloor.suggestions", JSON.stringify({ batch: batchId, offset: offset + 3 }));
+    } catch { /* Storage is optional. */ }
+    setSuggestions(Array.from({ length: Math.min(3, pool.length) }, (_, n) => pool[(offset + n) % pool.length]));
+  }, [draftLoaded, hasDraft, pool, batchId]);
 
   // Restoring a draft has to happen after mount: the server has no localStorage,
   // and rendering the stored value directly would mismatch the server's markup.
@@ -138,7 +123,7 @@ export default function AddFloorControl({ busy, pending, disabled, error, sponso
         {suggestions.map((suggestion) => <button type="button" key={suggestion.label} onClick={() => { change(suggestion.prompt); document.getElementById("room-description")?.focus(); }}>{suggestion.label}</button>)}
       </div>}
       {draftLoaded && !theme && suggestions.length === 0 && <p className={styles.ideasStatus} role="status">
-        {loadingIdeas ? "Dreaming up room ideas…" : <>Room ideas need an available Anthropic key. You can still write your own. <button type="button" onClick={() => setIdeasAttempt((n) => n + 1)}>Try again</button></>}
+        {loadingIdeas ? "Dreaming up room ideas…" : <>Room ideas need an available Anthropic key. You can still write your own. <button type="button" onClick={retry}>Try again</button></>}
       </p>}
       {usingOwnKeys && <label className={styles.effort}>
         <span className={styles.label}>EFFORT</span>
