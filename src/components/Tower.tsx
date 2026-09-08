@@ -87,8 +87,8 @@ export default function Tower({ initialArrival }: { initialArrival: { ordinals: 
   const mine = useRef<Set<string>>(new Set());
 
   const { keys, setKeys, headers, loaded: keysLoaded } = useKeys();
-  const ideaContext = floors.filter((floor) => floor.kind === "floor" && !floor.isReference)
-    .map((floor) => `${floor.id}:${floor.status}:${floor.displayName}`).join("|");
+  const ideaContext = useMemo(() => floors.filter((floor) => floor.kind === "floor" && !floor.isReference)
+    .map((floor) => `${floor.id}:${floor.status}:${floor.displayName}`).join("|"), [floors]);
   const roomIdeas = useRoomIdeas(metadataLoaded && keysLoaded, keys.anthropic, ideaContext);
 
   /**
