@@ -72,6 +72,13 @@ Highly detailed isometric pixel art, 16/32-bit game aesthetic. Crisp deliberate
 pixel edges, consistent pixel density and object scale, rich interior lighting,
 tiny expressive characters. Dense but readable.
 
+TEXT PLACEMENT:
+All text must appear on physical surfaces within the building silhouette:
+interior signs, boards, labels, or the designated floor-number wall. Do not add
+a scene title, caption, logo, legend, or floating lettering outside the building,
+including beneath or beside the floor. This applies to the theme name and every
+signage idea in the theme details below. Leave the surrounding area empty.
+
 BACKGROUND AND OUTLINE:
 Everything around the building is solid pure black, #000000, edge to edge. No
 gradient, no vignette, no glow, no checkerboard.

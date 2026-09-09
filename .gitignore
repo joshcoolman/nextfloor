@@ -149,3 +149,4 @@ public/nextfloor-*test*.png
 .playwright/
 playwright-report/
 test-results/
+.local/

@@ -43,6 +43,7 @@ export const fal: ImageProvider = {
   async generate(apiKey: string, prompt: string, reference: Reference | null, funding) {
     if (funding && !reference) throw new Error("The reference artwork is unavailable. Sponsored construction cannot start.");
     const model = funding ? POLICY.imageModel : reference ? EDIT_MODEL : SEED_MODEL;
+    console.info("[nextfloor] artwork request", { model });
     const input: Record<string, unknown> = {
       // The edit prompt already carries the reference contract in full.
       prompt,
@@ -122,6 +123,7 @@ export const fal: ImageProvider = {
       mimeType: image.content_type ?? "image/png",
       width: 0,
       height: 0,
+      model,
     };
   },
 };
