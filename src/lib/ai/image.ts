@@ -2,6 +2,7 @@ import { TILE } from "@/lib/building/styleGuide";
 import { detectMime, readDimensions } from "@/lib/image/dimensions";
 import { ORPHAN_LIMIT, orphanFraction } from "@/lib/image/artifacts";
 import { ContractError } from "./errors";
+import { birefnetEnabled } from "@/lib/image/birefnet";
 import type { Keys } from "./keys";
 import { fal } from "./providers/fal";
 import type { GeneratedTile, Reference } from "./providers/types";
@@ -49,7 +50,8 @@ export async function generateFloorImage(
   // The model intermittently draws a transparency checkerboard into the
   // surround. It is rejected rather than cleaned: the retry is cheap and
   // repairing it in place damages the artwork.
-  const orphans = await orphanFraction(tile.bytes);
+  // The mask experiment checks debris after segmentation, on the final alpha.
+  const orphans = birefnetEnabled(!!keys.funding) ? 0 : await orphanFraction(tile.bytes);
   if (orphans > ORPHAN_LIMIT) {
     throw new ContractError(
       `Generated tile has ${(orphans * 100).toFixed(2)}% orphaned pixels, which means a ` +

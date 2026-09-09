@@ -4,6 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "next dev",
+    "dev:alpha": "next dev",
+    "transparency:mask": "node --env-file=.env.local --import tsx scripts/transparency-mask.mjs",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",

@@ -3,6 +3,7 @@ export interface GeneratedTile {
   mimeType: string;
   width: number;
   height: number;
+  model?: string;
 }
 
 export interface Reference {

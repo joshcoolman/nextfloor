@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { join } from "node:path";
 import { composeEditPrompt, composeSeedPrompt } from "@/lib/building/prompt";
 import { EDIT_PROMPT_NAME } from "@/lib/prompts";
 import {
@@ -24,6 +25,7 @@ import {
 } from "@/lib/db/floors";
 import { deleteImage, getImage, putImage } from "@/lib/storage";
 import { restoreAlpha } from "@/lib/image/alpha";
+import { birefnetEnabled, runTransparencyExperiment } from "@/lib/image/birefnet";
 import { extensionFor, optimizeFloorImage } from "@/lib/image/optimize";
 import { analyzeTone, matchTone } from "@/lib/image/tone";
 import { assertConsistentTiles, readStartingTile } from "@/lib/building/importTiles";
@@ -115,11 +117,27 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor | n
     });
   }
 
-  const restored = await restoreAlpha(tile.bytes);
+  const maskExperiment = birefnetEnabled(!!options.keys.funding);
+  let maskResult;
+  const artifacts = join(process.cwd(), ".local", "transparency", options.floorId);
+  if (maskExperiment) {
+    try {
+      maskResult = await runTransparencyExperiment(options.keys.fal, tile.bytes, tile.mimeType, artifacts);
+    } catch (error) {
+      return dead(error instanceof Error ? error.message : "Transparency extraction failed.", {
+        stage: "transparency", spec, attempts, imageModel: tile.model,
+        alphaProcessing: "birefnet-mask", artifacts,
+      });
+    }
+  }
+  const restored = maskResult ? maskResult.bytes : await restoreAlpha(tile.bytes);
   const restoredMime = restored === tile.bytes ? tile.mimeType : "image/png";
   // Encoding is a delivery concern, so it happens after the artwork is final and
   // nothing upstream of here knows about it.
-  const optimized = await optimizeFloorImage(restored, restoredMime);
+  const optimized = maskResult ? {
+    bytes: restored, mimeType: "image/png", strategy: "mask-png",
+    originalBytes: tile.bytes.length, optimizedBytes: restored.length,
+  } : await optimizeFloorImage(restored, restoredMime);
   const key = `floors/${randomUUID()}.${extensionFor(optimized.mimeType)}`;
   await putImage(key, optimized.bytes, optimized.mimeType);
 
@@ -131,6 +149,9 @@ export async function generateFloor(options: GenerateOptions): Promise<Floor | n
     // told from one generated before it without reading the deploy history.
     meta: {
       attempts,
+      imageModel: tile.model,
+      alphaProcessing: maskResult ? "birefnet-mask" : "restore-alpha",
+      ...(maskResult ? { transparency: maskResult.report, artifacts } : {}),
       effort: options.effort ?? "medium",
       editPrompt: reference ? EDIT_PROMPT_NAME : null,
       encoding: optimized.strategy,
