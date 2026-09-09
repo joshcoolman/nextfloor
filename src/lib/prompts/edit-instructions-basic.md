@@ -55,11 +55,14 @@ neighbours at the wrong angle and the building visibly kinks at that storey.
 Measure the reference and match it.
 
 KEEP FROM THE REFERENCE:
-Everything structural. Camera angle, building dimensions, wall and floor
-thickness, left and right endpoints, pixel density, art direction, and the clean
-transparent surround that lets floors overlap when they are stacked. This is one
-module of a taller building, not a standalone illustration, a separate building,
-or an exterior scene.
+Match the camera angle, front floor slab, front-edge angle and thickness,
+left/right connection points, and elevator structure placement. These keep the
+floor aligned with its neighbours. Preserve pixel density and art direction.
+
+Allow the interior and rear silhouette to vary with the theme, including taller
+scenery and surprising details revealed when the floor is viewed alone. Keep
+those variations behind the fixed front connections, with a clean transparent
+surround.
 
 CHANGE:
 The interior only -- architecture, props, furniture, characters, lighting,
